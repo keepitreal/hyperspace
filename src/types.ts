@@ -91,6 +91,10 @@ export interface Alert {
   /** signed bps move from the level for this price; +ve when above the level */
   bpsFromLevel: number;
   barsSinceBreakout: number;
+  /** 0..100 composite quality score, only set on BREAKOUT */
+  confidence?: number;
+  /** Per-component contributions for transparency. Only set on BREAKOUT. */
+  confidenceBreakdown?: Record<string, number>;
 }
 
 export interface Config {

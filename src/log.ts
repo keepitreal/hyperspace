@@ -1,4 +1,5 @@
 import type { DetectedLevels } from "./levels.js";
+import { bucketFor } from "./quality.js";
 import type { Alert, AlertKind, Interval, Level } from "./types.js";
 
 const ANSI = {
@@ -62,6 +63,31 @@ function padKind(kind: AlertKind): string {
   return kind + " ".repeat(KIND_WIDTH - kind.length);
 }
 
+function fmtSignedComponent(name: string, value: number): string {
+  const sign = value > 0 ? "+" : "";
+  return `${name} ${sign}${value}`;
+}
+
+function fmtConfidence(alert: Alert): string {
+  if (alert.confidence === undefined) return "";
+  const bucket = bucketFor(alert.confidence);
+  const head = colorize(
+    `confidence ${alert.confidence}/100 ${bucket}`,
+    bucket === "HIGH"
+      ? ANSI.green
+      : bucket === "MEDIUM"
+        ? ANSI.yellow
+        : bucket === "LOW"
+          ? ANSI.magenta
+          : ANSI.red,
+  );
+  if (alert.confidenceBreakdown === undefined) return head;
+  const parts = Object.entries(alert.confidenceBreakdown)
+    .map(([k, v]) => fmtSignedComponent(k, v))
+    .join(", ");
+  return `${head} ${colorize(`(${parts})`, ANSI.dim)}`;
+}
+
 export function formatAlert(alert: Alert): string {
   const ts = colorize(`[${fmtTs(alert.ts)}]`, ANSI.dim);
   const kind = colorize(colorize(padKind(alert.kind), ANSI.bold), alertColor(alert.kind));
@@ -73,7 +99,10 @@ export function formatAlert(alert: Alert): string {
     alert.kind === "CONFIRMED" || alert.kind === "EXPIRED"
       ? colorize(`age ${alert.barsSinceBreakout}b`, ANSI.dim)
       : "";
-  return [ts, kind, meta, levelStr, priceStr, ageStr].filter((s) => s.length > 0).join("  ");
+  const confidenceStr = fmtConfidence(alert);
+  return [ts, kind, meta, levelStr, priceStr, ageStr, confidenceStr]
+    .filter((s) => s.length > 0)
+    .join("  ");
 }
 
 export function formatStatus(args: {

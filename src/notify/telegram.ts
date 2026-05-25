@@ -1,3 +1,4 @@
+import { bucketFor } from "../quality.js";
 import type { Alert } from "../types.js";
 import type { Notifier, NotifyLogger } from "./index.js";
 
@@ -38,6 +39,11 @@ function fmtBps(bps: number): string {
   return `${sign}${(bps / 100).toFixed(2)}%`;
 }
 
+function fmtBreakdownEntry(name: string, value: number): string {
+  const sign = value > 0 ? "+" : "";
+  return `${name} ${sign}${value}`;
+}
+
 export function formatTelegramMessage(alert: Alert): string {
   const coin = escapeHtml(alert.coin);
   const interval = escapeHtml(alert.interval);
@@ -46,6 +52,16 @@ export function formatTelegramMessage(alert: Alert): string {
   const lines: string[] = [headline];
   lines.push(`${side} <b>${fmtPrice(alert.levelPrice)}</b>`);
   lines.push(`px ${fmtPrice(alert.price)} (${fmtBps(alert.bpsFromLevel)})`);
+  if (alert.confidence !== undefined) {
+    const bucket = bucketFor(alert.confidence);
+    lines.push(`confidence <b>${alert.confidence}/100</b> ${bucket}`);
+    if (alert.confidenceBreakdown !== undefined) {
+      const parts = Object.entries(alert.confidenceBreakdown)
+        .map(([k, v]) => fmtBreakdownEntry(k, v))
+        .join(", ");
+      lines.push(`<i>${escapeHtml(parts)}</i>`);
+    }
+  }
   if (alert.kind === "CONFIRMED" || alert.kind === "EXPIRED") {
     lines.push(`<i>${alert.barsSinceBreakout} bars since breakout</i>`);
   }

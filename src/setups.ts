@@ -1,4 +1,5 @@
 import { levelKey, type DetectedLevels } from "./levels.js";
+import { scoreBreakout } from "./quality.js";
 import type {
   Alert,
   AlertKind,
@@ -82,16 +83,24 @@ export class SetupTracker {
       return;
     }
 
-    const newClosed: Candle[] = [];
-    for (const c of closedCandles) {
-      if (c.openTime > this.lastProcessedOpenTs) newClosed.push(c);
+    let startIdx = -1;
+    for (let i = 0; i < closedCandles.length; i++) {
+      const c = closedCandles[i];
+      if (c !== undefined && c.openTime > this.lastProcessedOpenTs) {
+        startIdx = i;
+        break;
+      }
     }
 
-    for (const candle of newClosed) {
-      for (const setup of this.setups.values()) {
-        this.applyClosedCandle(setup, candle, coin, interval);
+    if (startIdx >= 0) {
+      for (let i = startIdx; i < closedCandles.length; i++) {
+        const candle = closedCandles[i]!;
+        const history = closedCandles.slice(0, i);
+        for (const setup of this.setups.values()) {
+          this.applyClosedCandle(setup, candle, history, coin, interval);
+        }
+        this.lastProcessedOpenTs = candle.openTime;
       }
-      this.lastProcessedOpenTs = candle.openTime;
     }
 
     if (inProgress !== null) {
@@ -210,6 +219,7 @@ export class SetupTracker {
   private applyClosedCandle(
     setup: Setup,
     candle: Candle,
+    history: readonly Candle[],
     coin: string,
     interval: Interval,
   ): void {
@@ -266,7 +276,7 @@ export class SetupTracker {
         setup.breakoutTs = candle.openTime;
         setup.breakoutClose = candle.close;
         setup.barsSinceBreakout = 0;
-        this.emit("BREAKOUT", setup, candle.close, candle.closeTime, coin, interval);
+        this.emitBreakout(setup, candle, history, coin, interval);
 
         if (touchedRetestZone(setup.level, candle, retestBps)) {
           setup.state = "RETESTING";
@@ -278,6 +288,29 @@ export class SetupTracker {
         setup.primed = true;
       }
     }
+  }
+
+  private emitBreakout(
+    setup: Setup,
+    candle: Candle,
+    history: readonly Candle[],
+    coin: string,
+    interval: Interval,
+  ): void {
+    const score = scoreBreakout({ candle, history, level: setup.level });
+    this.alerts.push({
+      kind: "BREAKOUT",
+      ts: candle.closeTime,
+      coin,
+      interval,
+      side: setup.level.side,
+      levelPrice: setup.level.price,
+      price: candle.close,
+      bpsFromLevel: bpsFromLevel(setup.level, candle.close),
+      barsSinceBreakout: setup.barsSinceBreakout,
+      confidence: score.total,
+      confidenceBreakdown: { ...score.breakdown },
+    });
   }
 
   private applyInProgressCandle(

@@ -27,7 +27,7 @@ const log = {
 
 const notifier = new TelegramNotifier({ token, chatId, log });
 
-const fakeAlert: Alert = {
+const fakeConfirmed: Alert = {
   kind: "CONFIRMED",
   ts: Date.now(),
   coin: "BTC",
@@ -39,6 +39,29 @@ const fakeAlert: Alert = {
   barsSinceBreakout: 2,
 };
 
+const fakeBreakout: Alert = {
+  kind: "BREAKOUT",
+  ts: Date.now(),
+  coin: "ETH",
+  interval: "1h",
+  side: "resistance",
+  levelPrice: 2152.03,
+  price: 2168.4,
+  bpsFromLevel: 76,
+  barsSinceBreakout: 0,
+  confidence: 72,
+  confidenceBreakdown: {
+    close: 22,
+    volume: 18,
+    atr: 12,
+    wick: 0,
+    level: 10,
+    time: 10,
+  },
+};
+
 log.info("sending fake CONFIRMED alert via Telegram driver...");
-await notifier.send(fakeAlert);
+await notifier.send(fakeConfirmed);
+log.info("sending fake BREAKOUT alert with confidence...");
+await notifier.send(fakeBreakout);
 log.info("send completed without throwing");

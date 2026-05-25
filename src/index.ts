@@ -4,8 +4,43 @@ import { detectLevels } from "./levels.js";
 import { formatStatus, makeLogger } from "./log.js";
 import { buildNotifier } from "./notify/index.js";
 import { JsonStateStore } from "./persist.js";
+import { debugFeatures } from "./quality.js";
 import { SetupTracker } from "./setups.js";
-import type { Candle, Config } from "./types.js";
+import type { Candle, Config, SetupState } from "./types.js";
+
+const DEBUG = process.env.HYPERSPACE_DEBUG === "1";
+
+function fmtNum(n: number | null, digits = 2): string {
+  return n === null ? "n/a" : n.toFixed(digits);
+}
+
+function debugLine(closed: readonly Candle[], tracker: SetupTracker): string | null {
+  if (closed.length === 0) return null;
+  const last = closed[closed.length - 1]!;
+  const history = closed.slice(0, -1);
+  const f = debugFeatures(last, history);
+  const counts: Record<SetupState, number> = {
+    IDLE: 0,
+    BROKEN: 0,
+    RETESTING: 0,
+    CONFIRMED: 0,
+    INVALIDATED: 0,
+    EXPIRED: 0,
+  };
+  let primed = 0;
+  for (const s of tracker.snapshot()) {
+    counts[s.state] += 1;
+    if (s.state === "IDLE" && s.primed) primed += 1;
+  }
+  return (
+    `[debug] setups: ${counts.IDLE}I(${primed}p) ${counts.BROKEN}B ${counts.RETESTING}R` +
+    `  candle close=${fmtNum(last.close, 2)}` +
+    `  vol-ratio=${fmtNum(f.volumeRatio)}  atr=${fmtNum(f.atr)}` +
+    `  close-pos=${f.closePos.toFixed(2)}` +
+    `  upper-wick=${fmtNum(f.upperWickRatio)}  lower-wick=${fmtNum(f.lowerWickRatio)}` +
+    `  time=${f.timeLabel}`
+  );
+}
 
 const log = makeLogger();
 
@@ -145,6 +180,10 @@ async function run(config: Config, signal: AbortSignal): Promise<void> {
             levels,
           }),
         );
+        if (DEBUG) {
+          const dbg = debugLine(closed, tracker);
+          if (dbg !== null) log.info(dbg);
+        }
         lastStatusClosedHash = closedHash;
       }
 
