@@ -6,6 +6,7 @@ import { formatStatus, makeLogger } from "./log.js";
 import { buildNotifier, type Notifier } from "./notify/index.js";
 import { JsonStateStore } from "./persist.js";
 import { debugFeatures } from "./quality.js";
+import { RsiTracker } from "./rsiTracker.js";
 import { SetupTracker } from "./setups.js";
 import type { Candle, Config, SetupState } from "./types.js";
 
@@ -94,6 +95,12 @@ async function run(
     retestBars: config.retestBars,
   });
 
+  const rsiTracker = new RsiTracker({
+    period: config.rsiPeriod,
+    overbought: config.rsiOverbought,
+    oversold: config.rsiOversold,
+  });
+
   const store =
     config.stateFile !== undefined ? new JsonStateStore(config.stateFile, log) : null;
   const intervalMs = intervalToMs(config.interval);
@@ -107,6 +114,12 @@ async function run(
         { lastProcessedOpenTs: loaded.lastProcessedOpenTs, setups: loaded.setups },
         { clampOpenTsTo },
       );
+      if (loaded.rsiLastProcessedOpenTs !== undefined) {
+        rsiTracker.hydrate(
+          { lastProcessedOpenTs: loaded.rsiLastProcessedOpenTs },
+          { clampOpenTsTo },
+        );
+      }
       const ageMinutes = Math.round(ageMs / 60_000);
       log.info(
         `state: hydrated ${loaded.setups.length} setups from ${config.stateFile} (saved ${ageMinutes}m ago${clamped ? `, clamped to last ${config.maxReplayBars} bars` : ""})`,
@@ -126,19 +139,23 @@ async function run(
   let lastStatusClosedHash = "";
   let consecutiveErrors = 0;
   let lastSavedCursor = tracker.getLastProcessedOpenTs();
+  let lastSavedRsiCursor = rsiTracker.getLastProcessedOpenTs();
 
   const persistIfChanged = async (): Promise<void> => {
     if (store === null) return;
     const cursor = tracker.getLastProcessedOpenTs();
-    if (cursor === lastSavedCursor) return;
+    const rsiCursor = rsiTracker.getLastProcessedOpenTs();
+    if (cursor === lastSavedCursor && rsiCursor === lastSavedRsiCursor) return;
     const dumped = tracker.dump();
     await store.save({
       coin: config.coin,
       interval: config.interval,
       lastProcessedOpenTs: dumped.lastProcessedOpenTs,
       setups: dumped.setups,
+      rsiLastProcessedOpenTs: rsiCursor,
     });
     lastSavedCursor = cursor;
+    lastSavedRsiCursor = rsiCursor;
   };
 
   while (!signal.aborted) {
@@ -162,8 +179,16 @@ async function run(
         coin: config.coin,
         interval: config.interval,
       });
+      rsiTracker.update({
+        closedCandles: closed,
+        coin: config.coin,
+        interval: config.interval,
+      });
 
       for (const alert of tracker.drainAlerts()) {
+        await notifier.send(alert);
+      }
+      for (const alert of rsiTracker.drainAlerts()) {
         await notifier.send(alert);
       }
 

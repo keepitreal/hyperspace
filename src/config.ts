@@ -14,6 +14,9 @@ const DEFAULTS = {
   retestBars: 20,
   maxLevels: 8,
   maxReplayBars: 50,
+  rsiPeriod: 14,
+  rsiOverbought: 70,
+  rsiOversold: 30,
 } as const;
 
 interface RawDefaults {
@@ -26,6 +29,9 @@ interface RawDefaults {
   retestBars?: number;
   maxLevels?: number;
   maxReplayBars?: number;
+  rsiPeriod?: number;
+  rsiOverbought?: number;
+  rsiOversold?: number;
 }
 
 interface RawSymbol extends RawDefaults {
@@ -133,7 +139,23 @@ function buildConfig(
       merged.maxReplayBars,
       label("maxReplayBars"),
     ),
+    rsiPeriod: pickPositiveInt(sym.rsiPeriod, merged.rsiPeriod, label("rsiPeriod")),
+    rsiOverbought: pickNonNegativeNumber(
+      sym.rsiOverbought,
+      merged.rsiOverbought,
+      label("rsiOverbought"),
+    ),
+    rsiOversold: pickNonNegativeNumber(
+      sym.rsiOversold,
+      merged.rsiOversold,
+      label("rsiOversold"),
+    ),
   };
+  if (config.rsiOversold >= config.rsiOverbought) {
+    throw new ConfigError(
+      `${label("rsiOversold")} (${config.rsiOversold}) must be less than ${label("rsiOverbought")} (${config.rsiOverbought})`,
+    );
+  }
   if (stateDir !== undefined) {
     config.stateFile = stateFilePath(stateDir, coin, interval);
   }
@@ -156,6 +178,17 @@ function mergeDefaults(raw: RawDefaults | undefined): Required<RawDefaults> {
       raw?.maxReplayBars,
       DEFAULTS.maxReplayBars,
       "defaults.maxReplayBars",
+    ),
+    rsiPeriod: pickPositiveInt(raw?.rsiPeriod, DEFAULTS.rsiPeriod, "defaults.rsiPeriod"),
+    rsiOverbought: pickNonNegativeNumber(
+      raw?.rsiOverbought,
+      DEFAULTS.rsiOverbought,
+      "defaults.rsiOverbought",
+    ),
+    rsiOversold: pickNonNegativeNumber(
+      raw?.rsiOversold,
+      DEFAULTS.rsiOversold,
+      "defaults.rsiOversold",
     ),
   };
 }

@@ -112,6 +112,9 @@ const KNOWN_FLAGS = new Set([
   "max-levels",
   "state-file",
   "max-replay-bars",
+  "rsi-period",
+  "rsi-overbought",
+  "rsi-oversold",
   "config",
   "help",
   "h",
@@ -193,6 +196,23 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     optionalString(args, "max-replay-bars") ?? "50",
     "max-replay-bars",
   );
+  const rsiPeriod = parsePositiveInt(
+    optionalString(args, "rsi-period") ?? "14",
+    "rsi-period",
+  );
+  const rsiOverbought = parseNonNegativeNumber(
+    optionalString(args, "rsi-overbought") ?? "70",
+    "rsi-overbought",
+  );
+  const rsiOversold = parseNonNegativeNumber(
+    optionalString(args, "rsi-oversold") ?? "30",
+    "rsi-oversold",
+  );
+  if (rsiOversold >= rsiOverbought) {
+    throw new CliError(
+      `--rsi-oversold (${rsiOversold}) must be less than --rsi-overbought (${rsiOverbought})`,
+    );
+  }
 
   const stateFile = optionalString(args, "state-file");
   if (stateFile !== undefined && stateFile.length === 0) {
@@ -217,6 +237,9 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     retestBars,
     maxLevels,
     maxReplayBars,
+    rsiPeriod,
+    rsiOverbought,
+    rsiOversold,
   };
   if (stateFile !== undefined) config.stateFile = stateFile;
   return { kind: "single", config };
@@ -246,6 +269,11 @@ export function usage(): string {
     "  --retest-bps <bps>       Tolerance for price returning to level (default 15)",
     "  --retest-bars <n>        Bars after breakout before setup expires (default 20)",
     "  --max-levels <n>         Top-K levels per side (default 8)",
+    "",
+    "RSI:",
+    "  --rsi-period <n>         RSI Wilder period (default 14)",
+    "  --rsi-overbought <v>     Alert when RSI >= this value (default 70)",
+    "  --rsi-oversold <v>       Alert when RSI <= this value (default 30)",
     "",
     "Persistence:",
     "  --state-file <path>      Persist tracker state to this JSON file (default off)",

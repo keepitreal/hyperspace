@@ -53,6 +53,10 @@ function alertColor(kind: AlertKind): string {
       return ANSI.red;
     case "EXPIRED":
       return ANSI.gray;
+    case "RSI_OVERBOUGHT":
+      return ANSI.magenta;
+    case "RSI_OVERSOLD":
+      return ANSI.blue;
   }
 }
 
@@ -92,6 +96,11 @@ export function formatAlert(alert: Alert): string {
   const ts = colorize(`[${fmtTs(alert.ts)}]`, ANSI.dim);
   const kind = colorize(colorize(padKind(alert.kind), ANSI.bold), alertColor(alert.kind));
   const meta = `${alert.coin} ${alert.interval}`;
+  if (alert.kind === "RSI_OVERBOUGHT" || alert.kind === "RSI_OVERSOLD") {
+    const rsi = alert.rsiValue !== undefined ? alert.rsiValue.toFixed(1) : "n/a";
+    const priceStr = `px ${fmtPrice(alert.price)}`;
+    return [ts, kind, meta, `RSI ${rsi}`, priceStr].join("  ");
+  }
   const sideTag = colorize(alert.side, alert.side === "resistance" ? ANSI.red : ANSI.green);
   const levelStr = `${sideTag} ${fmtPrice(alert.levelPrice)}`;
   const priceStr = `px ${fmtPrice(alert.price)} (${fmtBps(alert.bpsFromLevel)})`;

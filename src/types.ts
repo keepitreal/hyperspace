@@ -77,7 +77,9 @@ export type AlertKind =
   | "RETEST_START"
   | "CONFIRMED"
   | "INVALIDATED"
-  | "EXPIRED";
+  | "EXPIRED"
+  | "RSI_OVERBOUGHT"
+  | "RSI_OVERSOLD";
 
 export interface Alert {
   kind: AlertKind;
@@ -95,6 +97,8 @@ export interface Alert {
   confidence?: number;
   /** Per-component contributions for transparency. Only set on BREAKOUT. */
   confidenceBreakdown?: Record<string, number>;
+  /** RSI value at the candle close. Only set on RSI_OVERBOUGHT / RSI_OVERSOLD. */
+  rsiValue?: number;
 }
 
 export interface Config {
@@ -112,4 +116,10 @@ export interface Config {
   stateFile?: string;
   /** Cap on how many bars of replay we'll do on hydrate after an outage. */
   maxReplayBars: number;
+  /** RSI lookback period (Wilder smoothing). Default 14. */
+  rsiPeriod: number;
+  /** RSI value at or above this fires RSI_OVERBOUGHT. Default 70. */
+  rsiOverbought: number;
+  /** RSI value at or below this fires RSI_OVERSOLD. Default 30. */
+  rsiOversold: number;
 }

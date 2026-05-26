@@ -47,9 +47,15 @@ function fmtBreakdownEntry(name: string, value: number): string {
 export function formatTelegramMessage(alert: Alert): string {
   const coin = escapeHtml(alert.coin);
   const interval = escapeHtml(alert.interval);
-  const side = escapeHtml(alert.side);
   const headline = `<b>${escapeHtml(alert.kind)}</b>  ${coin} ${interval}`;
   const lines: string[] = [headline];
+  if (alert.kind === "RSI_OVERBOUGHT" || alert.kind === "RSI_OVERSOLD") {
+    const rsi = alert.rsiValue !== undefined ? alert.rsiValue.toFixed(1) : "n/a";
+    lines.push(`RSI <b>${rsi}</b>`);
+    lines.push(`px ${fmtPrice(alert.price)}`);
+    return lines.join("\n");
+  }
+  const side = escapeHtml(alert.side);
   lines.push(`${side} <b>${fmtPrice(alert.levelPrice)}</b>`);
   lines.push(`px ${fmtPrice(alert.price)} (${fmtBps(alert.bpsFromLevel)})`);
   if (alert.confidence !== undefined) {

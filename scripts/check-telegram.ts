@@ -60,8 +60,23 @@ const fakeBreakout: Alert = {
   },
 };
 
+const fakeRsi: Alert = {
+  kind: "RSI_OVERBOUGHT",
+  ts: Date.now(),
+  coin: "BTC",
+  interval: "30m",
+  side: "resistance",
+  levelPrice: 0,
+  price: 71450.12,
+  bpsFromLevel: 0,
+  barsSinceBreakout: 0,
+  rsiValue: 76.3,
+};
+
 log.info("sending fake CONFIRMED alert via Telegram driver...");
 await notifier.send(fakeConfirmed);
 log.info("sending fake BREAKOUT alert with confidence...");
 await notifier.send(fakeBreakout);
+log.info("sending fake RSI_OVERBOUGHT alert...");
+await notifier.send(fakeRsi);
 log.info("send completed without throwing");

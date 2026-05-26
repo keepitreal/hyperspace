@@ -12,6 +12,11 @@ export interface PersistedState {
   setups: Setup[];
   /** wall-clock ms when the file was written, for diagnostics */
   savedAt: number;
+  /**
+   * RSI tracker cursor. Optional for backwards-compat with files written
+   * before RSI tracking was added — absent => RSI tracker starts fresh.
+   */
+  rsiLastProcessedOpenTs?: number;
 }
 
 export interface PersistLogger {
@@ -117,7 +122,8 @@ function validatePersisted(x: unknown): PersistedState | null {
     setups.push(v);
   }
 
-  return {
+  const rsiCursor = obj["rsiLastProcessedOpenTs"];
+  const out: PersistedState = {
     version: FILE_VERSION,
     coin: obj["coin"],
     interval: obj["interval"] as Interval,
@@ -125,6 +131,10 @@ function validatePersisted(x: unknown): PersistedState | null {
     setups,
     savedAt,
   };
+  if (typeof rsiCursor === "number") {
+    out.rsiLastProcessedOpenTs = rsiCursor;
+  }
+  return out;
 }
 
 function validateSetup(x: unknown): Setup | null {
