@@ -13,6 +13,10 @@
   "symbols": [
     { "coin": "ETH", "interval": "1h" },
     { "coin": "BTC", "interval": "1h" },
-    { "coin": "SOL", "interval": "1h" }
+    { "coin": "SOL", "interval": "1h" },
+    { "coin": "HYPE", "interval": "1h" },
+    { "coin": "NEAR", "interval": "1h" },
+    { "coin": "XRP", "interval": "1h" },
+    { "coin": "DOGE", "interval": "1h" }
   ]
 }
