@@ -1,0 +1,18 @@
+{
+  "stateDir": "/data",
+  "defaults": {
+    "lookback": 300,
+    "pivotWindow": 5,
+    "clusterBps": 25,
+    "breakBps": 10,
+    "retestBps": 15,
+    "retestBars": 20,
+    "maxLevels": 8,
+    "maxReplayBars": 50
+  },
+  "symbols": [
+    { "coin": "ETH", "interval": "1h" },
+    { "coin": "BTC", "interval": "1h" },
+    { "coin": "SOL", "interval": "1h" }
+  ]
+}

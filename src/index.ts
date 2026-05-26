@@ -1,8 +1,9 @@
 import { CliError, CliHelpRequested, intervalToMs, parseArgs, usage } from "./cli.js";
+import { ConfigError, loadSymbolsConfig } from "./config.js";
 import { fetchCandles, splitClosed } from "./hyperliquid.js";
 import { detectLevels } from "./levels.js";
 import { formatStatus, makeLogger } from "./log.js";
-import { buildNotifier } from "./notify/index.js";
+import { buildNotifier, type Notifier } from "./notify/index.js";
 import { JsonStateStore } from "./persist.js";
 import { debugFeatures } from "./quality.js";
 import { SetupTracker } from "./setups.js";
@@ -82,14 +83,16 @@ function lastClose(closed: readonly Candle[], inProgress: Candle | null): number
   return last !== undefined ? last.close : null;
 }
 
-async function run(config: Config, signal: AbortSignal): Promise<void> {
+async function run(
+  config: Config,
+  signal: AbortSignal,
+  notifier: Notifier,
+): Promise<void> {
   const tracker = new SetupTracker({
     breakBps: config.breakBps,
     retestBps: config.retestBps,
     retestBars: config.retestBars,
   });
-
-  const notifier = buildNotifier({ log });
 
   const store =
     config.stateFile !== undefined ? new JsonStateStore(config.stateFile, log) : null;
@@ -221,10 +224,26 @@ async function run(config: Config, signal: AbortSignal): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
-  let config: Config;
+async function resolveConfigs(): Promise<Config[]> {
+  const parsed = parseArgs(process.argv.slice(2));
+  if (parsed.kind === "single") return [parsed.config];
   try {
-    config = parseArgs(process.argv.slice(2));
+    const configs = await loadSymbolsConfig(parsed.configPath);
+    log.info(`config: loaded ${configs.length} symbols from ${parsed.configPath}`);
+    return configs;
+  } catch (e) {
+    if (e instanceof ConfigError) {
+      process.stderr.write(`${e.message}\n`);
+      process.exit(2);
+    }
+    throw e;
+  }
+}
+
+async function main(): Promise<void> {
+  let configs: Config[];
+  try {
+    configs = await resolveConfigs();
   } catch (e) {
     if (e instanceof CliHelpRequested) {
       process.stdout.write(`${usage()}\n`);
@@ -236,6 +255,8 @@ async function main(): Promise<void> {
     }
     throw e;
   }
+
+  const notifier = buildNotifier({ log });
 
   const controller = new AbortController();
   let shuttingDown = false;
@@ -252,7 +273,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", onSignal);
 
   try {
-    await run(config, controller.signal);
+    await Promise.all(configs.map((c) => run(c, controller.signal, notifier)));
   } finally {
     process.off("SIGINT", onSignal);
     process.off("SIGTERM", onSignal);

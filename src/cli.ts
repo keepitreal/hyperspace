@@ -112,11 +112,16 @@ const KNOWN_FLAGS = new Set([
   "max-levels",
   "state-file",
   "max-replay-bars",
+  "config",
   "help",
   "h",
 ]);
 
-export function parseArgs(argv: readonly string[]): Config {
+export type ParsedCli =
+  | { kind: "single"; config: Config }
+  | { kind: "multi"; configPath: string };
+
+export function parseArgs(argv: readonly string[]): ParsedCli {
   const args = tokenize(argv);
 
   for (const k of Object.keys(args)) {
@@ -127,6 +132,17 @@ export function parseArgs(argv: readonly string[]): Config {
 
   if (args.help === true || args.h === true) {
     throw new CliHelpRequested();
+  }
+
+  const configPath = optionalString(args, "config");
+  if (configPath !== undefined) {
+    if (configPath.length === 0) {
+      throw new CliError("--config requires a non-empty path");
+    }
+    if (args.coin !== undefined) {
+      throw new CliError("Cannot combine --config with --coin; pick one mode");
+    }
+    return { kind: "multi", configPath };
   }
 
   const coin = requireString(args, "coin");
@@ -203,14 +219,19 @@ export function parseArgs(argv: readonly string[]): Config {
     maxReplayBars,
   };
   if (stateFile !== undefined) config.stateFile = stateFile;
-  return config;
+  return { kind: "single", config };
 }
 
 export function usage(): string {
   return [
     "Usage: pnpm start --coin <SYMBOL> [--interval 15m] [--lookback 300] [options]",
+    "   or: pnpm start --config <path>",
     "",
-    "Required:",
+    "Multi-symbol mode:",
+    "  --config <path>          Read symbols + tunables from a JSON config file",
+    "                           Cannot be combined with --coin",
+    "",
+    "Required (single-symbol mode):",
     "  --coin <SYMBOL>          Hyperliquid coin (e.g. BTC, ETH, SOL)",
     "",
     "Common:",

@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "pnpm tsx src/index.ts --coin ETH --interval 1h --state-file /data/state.json",
+    "startCommand": "pnpm tsx src/index.ts --config symbols.json",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

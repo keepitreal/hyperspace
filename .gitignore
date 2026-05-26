@@ -49,3 +49,4 @@ Thumbs.db
 # Cache
 .eslintcache
 .cache/
+symbols.local.json
