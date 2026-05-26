@@ -114,7 +114,8 @@ function buildConfig(
     );
   }
 
-  const pollMs = pickPositiveInt(sym.pollMs, defaultPollMs(interval), label("pollMs"));
+  const pollMsFallback = merged.pollMs > 0 ? merged.pollMs : defaultPollMs(interval);
+  const pollMs = pickPositiveInt(sym.pollMs, pollMsFallback, label("pollMs"));
 
   const config: Config = {
     coin,
@@ -142,8 +143,9 @@ function buildConfig(
 function mergeDefaults(raw: RawDefaults | undefined): Required<RawDefaults> {
   return {
     lookback: pickPositiveInt(raw?.lookback, DEFAULTS.lookback, "defaults.lookback"),
-    // pollMs default is interval-dependent, computed per-symbol; placeholder here.
-    pollMs: 0,
+    // 0 = no global override; per-symbol pollMs or interval-derived default applies.
+    pollMs:
+      raw?.pollMs !== undefined ? requirePositiveInt(raw.pollMs, "defaults.pollMs") : 0,
     pivotWindow: pickPositiveInt(raw?.pivotWindow, DEFAULTS.pivotWindow, "defaults.pivotWindow"),
     clusterBps: pickNonNegativeNumber(raw?.clusterBps, DEFAULTS.clusterBps, "defaults.clusterBps"),
     breakBps: pickNonNegativeNumber(raw?.breakBps, DEFAULTS.breakBps, "defaults.breakBps"),
