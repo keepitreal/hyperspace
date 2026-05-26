@@ -12,12 +12,12 @@
     "maxReplayBars": 50
   },
   "symbols": [
-    { "coin": "ETH", "interval": "5m" },
-    { "coin": "BTC", "interval": "5m" },
-    { "coin": "SOL", "interval": "5m" },
-    { "coin": "HYPE", "interval": "5m" },
-    { "coin": "NEAR", "interval": "5m" },
-    { "coin": "XRP", "interval": "5m" },
-    { "coin": "DOGE", "interval": "5m" }
+    { "coin": "ETH", "interval": "30m" },
+    { "coin": "BTC", "interval": "30m" },
+    { "coin": "SOL", "interval": "30m" },
+    { "coin": "HYPE", "interval": "30m" },
+    { "coin": "NEAR", "interval": "30m" },
+    { "coin": "XRP", "interval": "30m" },
+    { "coin": "DOGE", "interval": "30m" }
   ]
 }
