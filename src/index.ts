@@ -9,6 +9,7 @@ import { debugFeatures } from "./quality.js";
 import { RsiTracker } from "./rsiTracker.js";
 import { SetupTracker } from "./setups.js";
 import type { Candle, Config, SetupState } from "./types.js";
+import { sessionVwap } from "./vwap.js";
 
 const DEBUG = process.env.HYPERSPACE_DEBUG === "1";
 
@@ -37,6 +38,7 @@ function debugLine(closed: readonly Candle[], tracker: SetupTracker): string | n
   return (
     `[debug] setups: ${counts.IDLE}I(${primed}p) ${counts.BROKEN}B ${counts.RETESTING}R` +
     `  candle close=${fmtNum(last.close, 2)}` +
+    `  vwap=${fmtNum(f.vwap, 2)}` +
     `  vol-ratio=${fmtNum(f.volumeRatio)}  atr=${fmtNum(f.atr)}` +
     `  close-pos=${f.closePos.toFixed(2)}` +
     `  upper-wick=${fmtNum(f.upperWickRatio)}  lower-wick=${fmtNum(f.lowerWickRatio)}` +
@@ -199,12 +201,16 @@ async function run(
       const px = lastClose(closed, inProgress);
 
       if (closedHash !== lastStatusClosedHash && px !== null) {
+        const lastForVwap = closed[closed.length - 1];
+        const vwapNow =
+          lastForVwap !== undefined ? sessionVwap(lastForVwap, closed.slice(0, -1)) : null;
         log.info(
           formatStatus({
             ts: Date.now(),
             coin: config.coin,
             interval: config.interval,
             price: px,
+            vwap: vwapNow,
             levels,
           }),
         );

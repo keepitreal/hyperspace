@@ -1,7 +1,10 @@
 import type { Candle, Level } from "./types.js";
+import { sessionVwap } from "./vwap.js";
 
 const VOLUME_WINDOW = 20;
 const ATR_WINDOW = 14;
+/** Fractional distance from VWAP below which we treat the close as "at VWAP" and skip the bonus/penalty. */
+const VWAP_DEAD_ZONE = 0.0005;
 
 export interface BreakoutScoreBreakdown {
   close: number;
@@ -10,6 +13,7 @@ export interface BreakoutScoreBreakdown {
   wick: number;
   level: number;
   time: number;
+  vwap: number;
 }
 
 export interface BreakoutScore {
@@ -145,9 +149,24 @@ function scoreLevel(touches: number): number {
   return 15;
 }
 
+/**
+ * Reward breakouts that close on the directionally-correct side of session
+ * VWAP; penalize counter-trend breakouts. Inside a tight band around VWAP
+ * the score is 0 — boundary noise shouldn't flip a 16-point swing on a
+ * fractional bps difference.
+ */
+function scoreVwap(close: number, vwap: number | null, side: Level["side"]): number {
+  if (vwap === null || vwap <= 0) return 0;
+  const fracDist = (close - vwap) / vwap;
+  if (Math.abs(fracDist) < VWAP_DEAD_ZONE) return 0;
+  const aligned = side === "resistance" ? fracDist > 0 : fracDist < 0;
+  return aligned ? 8 : -8;
+}
+
 export interface DebugFeatures {
   volumeRatio: number | null;
   atr: number | null;
+  vwap: number | null;
   closePos: number;
   upperWickRatio: number;
   lowerWickRatio: number;
@@ -170,6 +189,7 @@ export function debugFeatures(candle: Candle, history: readonly Candle[]): Debug
   return {
     volumeRatio: volumeRatio(candle, history),
     atr: atr(candle, history),
+    vwap: sessionVwap(candle, history),
     closePos,
     upperWickRatio,
     lowerWickRatio,
@@ -186,6 +206,7 @@ export function scoreBreakout(args: {
 
   const vr = volumeRatio(candle, history);
   const atrValue = atr(candle, history);
+  const vwap = sessionVwap(candle, history);
   const wr = wickRatio(candle, level.side);
   const closeBeyond =
     level.side === "resistance" ? candle.close - level.price : level.price - candle.close;
@@ -198,11 +219,13 @@ export function scoreBreakout(args: {
     wick: scoreWick(wr),
     level: scoreLevel(level.touches),
     time: tb.score,
+    vwap: scoreVwap(candle.close, vwap, level.side),
   };
 
   const missing: Array<keyof BreakoutScoreBreakdown> = [];
   if (vr === null) missing.push("volume");
   if (atrValue === null) missing.push("atr");
+  if (vwap === null) missing.push("vwap");
 
   const raw =
     breakdown.close +
@@ -210,7 +233,8 @@ export function scoreBreakout(args: {
     breakdown.atr +
     breakdown.wick +
     breakdown.level +
-    breakdown.time;
+    breakdown.time +
+    breakdown.vwap;
   const total = Math.max(0, Math.min(100, raw));
 
   return { total, breakdown, missing };

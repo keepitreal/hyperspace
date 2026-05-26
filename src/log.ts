@@ -119,14 +119,20 @@ export function formatStatus(args: {
   coin: string;
   interval: Interval;
   price: number;
+  vwap?: number | null;
   levels: DetectedLevels;
 }): string {
   const ts = colorize(`[${fmtTs(args.ts)}]`, ANSI.dim);
   const px = colorize(`px=${fmtPrice(args.price)}`, ANSI.bold);
+  const vwap =
+    args.vwap !== undefined && args.vwap !== null
+      ? colorize(`vwap=${fmtPrice(args.vwap)}`, ANSI.dim)
+      : "";
   const r = formatLevelList(args.levels.resistance, ANSI.red, 4);
   const s = formatLevelList(args.levels.support, ANSI.green, 4);
   const tag = colorize(`${args.coin} ${args.interval}`, ANSI.dim);
-  return `${ts} ${tag}  ${px}  levels: R ${r} | S ${s}`;
+  const head = vwap.length > 0 ? `${ts} ${tag}  ${px}  ${vwap}` : `${ts} ${tag}  ${px}`;
+  return `${head}  levels: R ${r} | S ${s}`;
 }
 
 function formatLevelList(levels: readonly Level[], color: string, take: number): string {
