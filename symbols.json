@@ -2,7 +2,7 @@
   "stateDir": "/data",
   "defaults": {
     "lookback": 300,
-    "pollMs": 30000,
+    "pollMs": 5000,
     "pivotWindow": 5,
     "clusterBps": 25,
     "breakBps": 10,
@@ -12,12 +12,9 @@
     "maxReplayBars": 50
   },
   "symbols": [
-    { "coin": "ETH", "interval": "30m" },
-    { "coin": "BTC", "interval": "30m" },
-    { "coin": "SOL", "interval": "30m" },
-    { "coin": "HYPE", "interval": "30m" },
-    { "coin": "NEAR", "interval": "30m" },
-    { "coin": "XRP", "interval": "30m" },
-    { "coin": "DOGE", "interval": "30m" }
+    { "coin": "ETH", "interval": "5m" },
+    { "coin": "BTC", "interval": "5m" },
+    { "coin": "SOL", "interval": "5m" },
+    { "coin": "HYPE", "interval": "5m" }
   ]
 }
