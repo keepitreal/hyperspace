@@ -12,9 +12,12 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "check:telegram": "tsx scripts/check-telegram.ts",
-    "backtest": "tsx strategies/run.ts"
+    "backtest": "tsx strategies/run.ts",
+    "analyst": "tsx analyst/run.ts",
+    "test": "tsx --test analyst/indicators/*.test.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
     "tsx": "^4.19.1"
   },
   "devDependencies": {
