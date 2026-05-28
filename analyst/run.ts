@@ -1,6 +1,9 @@
 import { getAnalysis } from "./client.js";
+import { loadDotEnv } from "./env.js";
 import { buildSnapshot } from "./snapshot.js";
 import { sendAnalysisToTelegram } from "./telegram.js";
+
+loadDotEnv();
 
 interface ParsedArgs {
   coins: string[];
