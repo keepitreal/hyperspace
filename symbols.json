@@ -12,9 +12,6 @@
     "maxReplayBars": 50
   },
   "symbols": [
-    { "coin": "ETH", "interval": "5m" },
-    { "coin": "BTC", "interval": "5m" },
-    { "coin": "SOL", "interval": "5m" },
-    { "coin": "HYPE", "interval": "5m" }
+    { "coin": "ETH", "interval": "1m" }
   ]
 }
