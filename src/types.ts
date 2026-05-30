@@ -79,7 +79,20 @@ export type AlertKind =
   | "INVALIDATED"
   | "EXPIRED"
   | "RSI_OVERBOUGHT"
-  | "RSI_OVERSOLD";
+  | "RSI_OVERSOLD"
+  | "VOLATILITY_SPIKE";
+
+/** Runtime list — keep in sync with AlertKind union. Used for config validation. */
+export const ALL_ALERT_KINDS: readonly AlertKind[] = [
+  "BREAKOUT",
+  "RETEST_START",
+  "CONFIRMED",
+  "INVALIDATED",
+  "EXPIRED",
+  "RSI_OVERBOUGHT",
+  "RSI_OVERSOLD",
+  "VOLATILITY_SPIKE",
+];
 
 export interface Alert {
   kind: AlertKind;
@@ -99,6 +112,10 @@ export interface Alert {
   confidenceBreakdown?: Record<string, number>;
   /** RSI value at the candle close. Only set on RSI_OVERBOUGHT / RSI_OVERSOLD. */
   rsiValue?: number;
+  /** Signed body change (close − open) / open as a fraction. +ve = bullish candle. Only on VOLATILITY_SPIKE. */
+  volatilityPct?: number;
+  /** Candle open price. Only on VOLATILITY_SPIKE — paired with `price` (close) for the message. */
+  candleOpen?: number;
 }
 
 export interface Config {
@@ -122,4 +139,8 @@ export interface Config {
   rsiOverbought: number;
   /** RSI value at or below this fires RSI_OVERSOLD. Default 30. */
   rsiOversold: number;
+  /** Body change (close-open)/open percentage; fires VOLATILITY_SPIKE when |body| >= this. Default 1.0 (=1%). */
+  volatilityThresholdPct: number;
+  /** Optional per-monitor inclusion list of alert kinds. Undefined = all kinds emit. */
+  alerts?: readonly AlertKind[];
 }

@@ -57,6 +57,8 @@ function alertColor(kind: AlertKind): string {
       return ANSI.magenta;
     case "RSI_OVERSOLD":
       return ANSI.blue;
+    case "VOLATILITY_SPIKE":
+      return ANSI.yellow;
   }
 }
 
@@ -100,6 +102,15 @@ export function formatAlert(alert: Alert): string {
     const rsi = alert.rsiValue !== undefined ? alert.rsiValue.toFixed(1) : "n/a";
     const priceStr = `px ${fmtPrice(alert.price)}`;
     return [ts, kind, meta, `RSI ${rsi}`, priceStr].join("  ");
+  }
+  if (alert.kind === "VOLATILITY_SPIKE") {
+    const pct = alert.volatilityPct !== undefined ? (alert.volatilityPct * 100).toFixed(2) : "n/a";
+    const sign = alert.volatilityPct !== undefined && alert.volatilityPct >= 0 ? "+" : "";
+    const openStr = alert.candleOpen !== undefined ? `open ${fmtPrice(alert.candleOpen)}` : "";
+    const closeStr = `close ${fmtPrice(alert.price)}`;
+    return [ts, kind, meta, `body ${sign}${pct}%`, openStr, closeStr]
+      .filter((s) => s.length > 0)
+      .join("  ");
   }
   const sideTag = colorize(alert.side, alert.side === "resistance" ? ANSI.red : ANSI.green);
   const levelStr = `${sideTag} ${fmtPrice(alert.levelPrice)}`;

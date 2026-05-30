@@ -17,6 +17,11 @@ export interface PersistedState {
    * before RSI tracking was added — absent => RSI tracker starts fresh.
    */
   rsiLastProcessedOpenTs?: number;
+  /**
+   * Volatility tracker cursor. Optional for backwards-compat with files
+   * written before volatility tracking was added.
+   */
+  volatilityLastProcessedOpenTs?: number;
 }
 
 export interface PersistLogger {
@@ -123,6 +128,7 @@ function validatePersisted(x: unknown): PersistedState | null {
   }
 
   const rsiCursor = obj["rsiLastProcessedOpenTs"];
+  const volatilityCursor = obj["volatilityLastProcessedOpenTs"];
   const out: PersistedState = {
     version: FILE_VERSION,
     coin: obj["coin"],
@@ -133,6 +139,9 @@ function validatePersisted(x: unknown): PersistedState | null {
   };
   if (typeof rsiCursor === "number") {
     out.rsiLastProcessedOpenTs = rsiCursor;
+  }
+  if (typeof volatilityCursor === "number") {
+    out.volatilityLastProcessedOpenTs = volatilityCursor;
   }
   return out;
 }

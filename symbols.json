@@ -9,9 +9,28 @@
     "retestBps": 15,
     "retestBars": 20,
     "maxLevels": 8,
-    "maxReplayBars": 50
+    "maxReplayBars": 50,
+    "volatilityThresholdPct": 1.0
   },
   "symbols": [
-    { "coin": "ETH", "interval": "1m" }
+    {
+      "coin": "ETH",
+      "interval": "5m",
+      "alerts": [
+        "BREAKOUT",
+        "RETEST_START",
+        "CONFIRMED",
+        "INVALIDATED",
+        "EXPIRED",
+        "RSI_OVERBOUGHT",
+        "RSI_OVERSOLD"
+      ]
+    },
+    {
+      "coin": "ETH",
+      "interval": "30m",
+      "pollMs": 60000,
+      "alerts": ["VOLATILITY_SPIKE"]
+    }
   ]
 }

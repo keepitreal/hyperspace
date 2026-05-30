@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { intervalToMs } from "./cli.js";
-import { INTERVALS, type Config, type Interval } from "./types.js";
+import { ALL_ALERT_KINDS, INTERVALS, type AlertKind, type Config, type Interval } from "./types.js";
 
 export class ConfigError extends Error {}
 
@@ -17,6 +17,7 @@ const DEFAULTS = {
   rsiPeriod: 14,
   rsiOverbought: 70,
   rsiOversold: 30,
+  volatilityThresholdPct: 1.0,
 } as const;
 
 interface RawDefaults {
@@ -32,11 +33,13 @@ interface RawDefaults {
   rsiPeriod?: number;
   rsiOverbought?: number;
   rsiOversold?: number;
+  volatilityThresholdPct?: number;
 }
 
 interface RawSymbol extends RawDefaults {
   coin?: unknown;
   interval?: unknown;
+  alerts?: unknown;
 }
 
 interface RawConfigFile {
@@ -47,6 +50,31 @@ interface RawConfigFile {
 
 function isInterval(s: unknown): s is Interval {
   return typeof s === "string" && (INTERVALS as readonly string[]).includes(s);
+}
+
+function isAlertKind(s: unknown): s is AlertKind {
+  return typeof s === "string" && (ALL_ALERT_KINDS as readonly string[]).includes(s);
+}
+
+function pickAlertKinds(
+  override: unknown,
+  label: string,
+): readonly AlertKind[] | undefined {
+  if (override === undefined) return undefined;
+  if (!Array.isArray(override)) {
+    throw new ConfigError(`${label} must be an array of alert kinds`);
+  }
+  const out: AlertKind[] = [];
+  for (let i = 0; i < override.length; i++) {
+    const k = override[i];
+    if (!isAlertKind(k)) {
+      throw new ConfigError(
+        `${label}[${i}] is not a valid alert kind (got ${JSON.stringify(k)}); must be one of ${ALL_ALERT_KINDS.join(", ")}`,
+      );
+    }
+    out.push(k);
+  }
+  return out;
 }
 
 function requirePositiveInt(value: unknown, label: string): number {
@@ -150,11 +178,28 @@ function buildConfig(
       merged.rsiOversold,
       label("rsiOversold"),
     ),
+    volatilityThresholdPct: pickNonNegativeNumber(
+      sym.volatilityThresholdPct,
+      merged.volatilityThresholdPct,
+      label("volatilityThresholdPct"),
+    ),
   };
   if (config.rsiOversold >= config.rsiOverbought) {
     throw new ConfigError(
       `${label("rsiOversold")} (${config.rsiOversold}) must be less than ${label("rsiOverbought")} (${config.rsiOverbought})`,
     );
+  }
+  if (config.volatilityThresholdPct <= 0) {
+    throw new ConfigError(
+      `${label("volatilityThresholdPct")} must be > 0 (got ${config.volatilityThresholdPct})`,
+    );
+  }
+  const alerts = pickAlertKinds(sym.alerts, label("alerts"));
+  if (alerts !== undefined) {
+    if (alerts.length === 0) {
+      throw new ConfigError(`${label("alerts")} must contain at least one kind when present`);
+    }
+    config.alerts = alerts;
   }
   if (stateDir !== undefined) {
     config.stateFile = stateFilePath(stateDir, coin, interval);
@@ -189,6 +234,11 @@ function mergeDefaults(raw: RawDefaults | undefined): Required<RawDefaults> {
       raw?.rsiOversold,
       DEFAULTS.rsiOversold,
       "defaults.rsiOversold",
+    ),
+    volatilityThresholdPct: pickNonNegativeNumber(
+      raw?.volatilityThresholdPct,
+      DEFAULTS.volatilityThresholdPct,
+      "defaults.volatilityThresholdPct",
     ),
   };
 }

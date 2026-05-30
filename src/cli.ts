@@ -1,4 +1,4 @@
-import { INTERVALS, type Config, type Interval } from "./types.js";
+import { ALL_ALERT_KINDS, INTERVALS, type AlertKind, type Config, type Interval } from "./types.js";
 
 export class CliError extends Error {}
 export class CliHelpRequested extends Error {
@@ -115,6 +115,8 @@ const KNOWN_FLAGS = new Set([
   "rsi-period",
   "rsi-overbought",
   "rsi-oversold",
+  "volatility-threshold-pct",
+  "alerts",
   "config",
   "help",
   "h",
@@ -214,6 +216,33 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     );
   }
 
+  const volatilityThresholdPct = parseNonNegativeNumber(
+    optionalString(args, "volatility-threshold-pct") ?? "1.0",
+    "volatility-threshold-pct",
+  );
+  if (volatilityThresholdPct <= 0) {
+    throw new CliError("--volatility-threshold-pct must be > 0");
+  }
+
+  const alertsRaw = optionalString(args, "alerts");
+  let alerts: AlertKind[] | undefined;
+  if (alertsRaw !== undefined) {
+    const tokens = alertsRaw.split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    if (tokens.length === 0) {
+      throw new CliError("--alerts requires at least one kind");
+    }
+    const kinds: AlertKind[] = [];
+    for (const tok of tokens) {
+      if (!(ALL_ALERT_KINDS as readonly string[]).includes(tok)) {
+        throw new CliError(
+          `--alerts kind "${tok}" is not valid; must be one of ${ALL_ALERT_KINDS.join(", ")}`,
+        );
+      }
+      kinds.push(tok as AlertKind);
+    }
+    alerts = kinds;
+  }
+
   const stateFile = optionalString(args, "state-file");
   if (stateFile !== undefined && stateFile.length === 0) {
     throw new CliError("--state-file requires a non-empty path");
@@ -240,8 +269,10 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     rsiPeriod,
     rsiOverbought,
     rsiOversold,
+    volatilityThresholdPct,
   };
   if (stateFile !== undefined) config.stateFile = stateFile;
+  if (alerts !== undefined) config.alerts = alerts;
   return { kind: "single", config };
 }
 
@@ -274,6 +305,12 @@ export function usage(): string {
     "  --rsi-period <n>         RSI Wilder period (default 14)",
     "  --rsi-overbought <v>     Alert when RSI >= this value (default 70)",
     "  --rsi-oversold <v>       Alert when RSI <= this value (default 30)",
+    "",
+    "Volatility:",
+    "  --volatility-threshold-pct <pct>  Fire VOLATILITY_SPIKE when |close-open|/open >= pct (default 1.0)",
+    "",
+    "Alert filtering:",
+    `  --alerts <CSV>           Restrict emitted alerts to listed kinds (omit = all). Valid: ${ALL_ALERT_KINDS.join(", ")}`,
     "",
     "Persistence:",
     "  --state-file <path>      Persist tracker state to this JSON file (default off)",

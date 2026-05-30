@@ -14,7 +14,7 @@
     "check:telegram": "tsx scripts/check-telegram.ts",
     "backtest": "tsx strategies/run.ts",
     "analyst": "tsx analyst/run.ts",
-    "test": "tsx --test analyst/*.test.ts analyst/indicators/*.test.ts"
+    "test": "tsx --test analyst/*.test.ts analyst/indicators/*.test.ts src/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",

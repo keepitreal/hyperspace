@@ -73,10 +73,26 @@ const fakeRsi: Alert = {
   rsiValue: 76.3,
 };
 
+const fakeVolatility: Alert = {
+  kind: "VOLATILITY_SPIKE",
+  ts: Date.now(),
+  coin: "ETH",
+  interval: "30m",
+  side: "resistance",
+  levelPrice: 0,
+  price: 2052.85,
+  bpsFromLevel: 0,
+  barsSinceBreakout: 0,
+  volatilityPct: 0.0142,
+  candleOpen: 2024.1,
+};
+
 log.info("sending fake CONFIRMED alert via Telegram driver...");
 await notifier.send(fakeConfirmed);
 log.info("sending fake BREAKOUT alert with confidence...");
 await notifier.send(fakeBreakout);
 log.info("sending fake RSI_OVERBOUGHT alert...");
 await notifier.send(fakeRsi);
+log.info("sending fake VOLATILITY_SPIKE alert...");
+await notifier.send(fakeVolatility);
 log.info("send completed without throwing");

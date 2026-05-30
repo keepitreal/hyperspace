@@ -8,8 +8,13 @@ import { JsonStateStore } from "./persist.js";
 import { debugFeatures } from "./quality.js";
 import { RsiTracker } from "./rsiTracker.js";
 import { SetupTracker } from "./setups.js";
-import type { Candle, Config, SetupState } from "./types.js";
+import type { Alert, AlertKind, Candle, Config, SetupState } from "./types.js";
+import { VolatilityTracker } from "./volatilityTracker.js";
 import { sessionVwap } from "./vwap.js";
+
+function allows(kind: AlertKind, allowed?: readonly AlertKind[]): boolean {
+  return allowed === undefined || allowed.includes(kind);
+}
 
 const DEBUG = process.env.HYPERSPACE_DEBUG === "1";
 
@@ -103,6 +108,10 @@ async function run(
     oversold: config.rsiOversold,
   });
 
+  const volatilityTracker = new VolatilityTracker({
+    thresholdPct: config.volatilityThresholdPct,
+  });
+
   const store =
     config.stateFile !== undefined ? new JsonStateStore(config.stateFile, log) : null;
   const intervalMs = intervalToMs(config.interval);
@@ -119,6 +128,12 @@ async function run(
       if (loaded.rsiLastProcessedOpenTs !== undefined) {
         rsiTracker.hydrate(
           { lastProcessedOpenTs: loaded.rsiLastProcessedOpenTs },
+          { clampOpenTsTo },
+        );
+      }
+      if (loaded.volatilityLastProcessedOpenTs !== undefined) {
+        volatilityTracker.hydrate(
+          { lastProcessedOpenTs: loaded.volatilityLastProcessedOpenTs },
           { clampOpenTsTo },
         );
       }
@@ -142,12 +157,20 @@ async function run(
   let consecutiveErrors = 0;
   let lastSavedCursor = tracker.getLastProcessedOpenTs();
   let lastSavedRsiCursor = rsiTracker.getLastProcessedOpenTs();
+  let lastSavedVolatilityCursor = volatilityTracker.getLastProcessedOpenTs();
 
   const persistIfChanged = async (): Promise<void> => {
     if (store === null) return;
     const cursor = tracker.getLastProcessedOpenTs();
     const rsiCursor = rsiTracker.getLastProcessedOpenTs();
-    if (cursor === lastSavedCursor && rsiCursor === lastSavedRsiCursor) return;
+    const volatilityCursor = volatilityTracker.getLastProcessedOpenTs();
+    if (
+      cursor === lastSavedCursor &&
+      rsiCursor === lastSavedRsiCursor &&
+      volatilityCursor === lastSavedVolatilityCursor
+    ) {
+      return;
+    }
     const dumped = tracker.dump();
     await store.save({
       coin: config.coin,
@@ -155,9 +178,11 @@ async function run(
       lastProcessedOpenTs: dumped.lastProcessedOpenTs,
       setups: dumped.setups,
       rsiLastProcessedOpenTs: rsiCursor,
+      volatilityLastProcessedOpenTs: volatilityCursor,
     });
     lastSavedCursor = cursor;
     lastSavedRsiCursor = rsiCursor;
+    lastSavedVolatilityCursor = volatilityCursor;
   };
 
   while (!signal.aborted) {
@@ -186,12 +211,21 @@ async function run(
         coin: config.coin,
         interval: config.interval,
       });
+      volatilityTracker.update({
+        closedCandles: closed,
+        coin: config.coin,
+        interval: config.interval,
+      });
 
-      for (const alert of tracker.drainAlerts()) {
-        await notifier.send(alert);
-      }
-      for (const alert of rsiTracker.drainAlerts()) {
-        await notifier.send(alert);
+      const drained: Alert[] = [
+        ...tracker.drainAlerts(),
+        ...rsiTracker.drainAlerts(),
+        ...volatilityTracker.drainAlerts(),
+      ];
+      for (const alert of drained) {
+        if (allows(alert.kind, config.alerts)) {
+          await notifier.send(alert);
+        }
       }
 
       await persistIfChanged();

@@ -55,6 +55,20 @@ export function formatTelegramMessage(alert: Alert): string {
     lines.push(`px ${fmtPrice(alert.price)}`);
     return lines.join("\n");
   }
+  if (alert.kind === "VOLATILITY_SPIKE") {
+    const pctRaw = alert.volatilityPct;
+    const pctStr =
+      pctRaw !== undefined
+        ? `${pctRaw >= 0 ? "+" : ""}${(pctRaw * 100).toFixed(2)}%`
+        : "n/a";
+    lines.push(`body <b>${escapeHtml(pctStr)}</b>`);
+    if (alert.candleOpen !== undefined) {
+      lines.push(`open ${fmtPrice(alert.candleOpen)} → close ${fmtPrice(alert.price)}`);
+    } else {
+      lines.push(`close ${fmtPrice(alert.price)}`);
+    }
+    return lines.join("\n");
+  }
   const side = escapeHtml(alert.side);
   lines.push(`${side} <b>${fmtPrice(alert.levelPrice)}</b>`);
   lines.push(`px ${fmtPrice(alert.price)} (${fmtBps(alert.bpsFromLevel)})`);
