@@ -10,7 +10,7 @@
     "retestBars": 20,
     "maxLevels": 8,
     "maxReplayBars": 50,
-    "volatilityThresholdPct": 1.0
+    "volatilityThresholdPct": 0.5
   },
   "symbols": [
     {
@@ -23,13 +23,26 @@
         "INVALIDATED",
         "EXPIRED",
         "RSI_OVERBOUGHT",
-        "RSI_OVERSOLD"
+        "RSI_OVERSOLD",
+        "VOLATILITY_SPIKE"
       ]
+    },
+    {
+      "coin": "ETH",
+      "interval": "15m",
+      "pollMs": 30000,
+      "alerts": ["VOLATILITY_SPIKE"]
     },
     {
       "coin": "ETH",
       "interval": "30m",
       "pollMs": 60000,
+      "alerts": ["VOLATILITY_SPIKE"]
+    },
+    {
+      "coin": "ETH",
+      "interval": "1h",
+      "pollMs": 120000,
       "alerts": ["VOLATILITY_SPIKE"]
     }
   ]
