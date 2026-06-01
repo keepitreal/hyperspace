@@ -48,25 +48,29 @@
     {
       "coin": "xyz:SP500",
       "interval": "5m",
+      "rsiOversold": 35,
       "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
     },
     {
       "coin": "xyz:SP500",
       "interval": "15m",
       "pollMs": 30000,
-      "alerts": ["VOLATILITY_SPIKE"]
+      "rsiOversold": 35,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
     },
     {
       "coin": "xyz:SP500",
       "interval": "30m",
       "pollMs": 60000,
-      "alerts": ["VOLATILITY_SPIKE"]
+      "rsiOversold": 35,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
     },
     {
       "coin": "xyz:SP500",
       "interval": "1h",
       "pollMs": 120000,
-      "alerts": ["VOLATILITY_SPIKE"]
+      "rsiOversold": 35,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
     }
   ]
 }
