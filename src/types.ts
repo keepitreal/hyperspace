@@ -112,10 +112,12 @@ export interface Alert {
   confidenceBreakdown?: Record<string, number>;
   /** RSI value at the candle close. Only set on RSI_OVERBOUGHT / RSI_OVERSOLD. */
   rsiValue?: number;
-  /** Signed body change (close − open) / open as a fraction. +ve = bullish candle. Only on VOLATILITY_SPIKE. */
+  /** Range (high − low) / open as a fraction (always positive). Only on VOLATILITY_SPIKE. */
   volatilityPct?: number;
-  /** Candle open price. Only on VOLATILITY_SPIKE — paired with `price` (close) for the message. */
-  candleOpen?: number;
+  /** Candle high. Only on VOLATILITY_SPIKE. */
+  candleHigh?: number;
+  /** Candle low. Only on VOLATILITY_SPIKE. */
+  candleLow?: number;
 }
 
 export interface Config {

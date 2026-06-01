@@ -57,16 +57,15 @@ export function formatTelegramMessage(alert: Alert): string {
   }
   if (alert.kind === "VOLATILITY_SPIKE") {
     const pctRaw = alert.volatilityPct;
-    const pctStr =
-      pctRaw !== undefined
-        ? `${pctRaw >= 0 ? "+" : ""}${(pctRaw * 100).toFixed(2)}%`
-        : "n/a";
-    lines.push(`body <b>${escapeHtml(pctStr)}</b>`);
-    if (alert.candleOpen !== undefined) {
-      lines.push(`open ${fmtPrice(alert.candleOpen)} → close ${fmtPrice(alert.price)}`);
-    } else {
-      lines.push(`close ${fmtPrice(alert.price)}`);
+    const pctStr = pctRaw !== undefined ? `${(pctRaw * 100).toFixed(2)}%` : "n/a";
+    lines.push(`range <b>${escapeHtml(pctStr)}</b>`);
+    const hi = alert.candleHigh !== undefined ? `H ${fmtPrice(alert.candleHigh)}` : "";
+    const lo = alert.candleLow !== undefined ? `L ${fmtPrice(alert.candleLow)}` : "";
+    if (hi.length > 0 || lo.length > 0) {
+      lines.push([hi, lo].filter((s) => s.length > 0).join("  "));
     }
+    const closeDir = alert.side === "resistance" ? "up" : "down";
+    lines.push(`close ${fmtPrice(alert.price)} (${escapeHtml(closeDir)})`);
     return lines.join("\n");
   }
   const side = escapeHtml(alert.side);

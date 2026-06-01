@@ -105,10 +105,11 @@ export function formatAlert(alert: Alert): string {
   }
   if (alert.kind === "VOLATILITY_SPIKE") {
     const pct = alert.volatilityPct !== undefined ? (alert.volatilityPct * 100).toFixed(2) : "n/a";
-    const sign = alert.volatilityPct !== undefined && alert.volatilityPct >= 0 ? "+" : "";
-    const openStr = alert.candleOpen !== undefined ? `open ${fmtPrice(alert.candleOpen)}` : "";
-    const closeStr = `close ${fmtPrice(alert.price)}`;
-    return [ts, kind, meta, `body ${sign}${pct}%`, openStr, closeStr]
+    const hi = alert.candleHigh !== undefined ? `H ${fmtPrice(alert.candleHigh)}` : "";
+    const lo = alert.candleLow !== undefined ? `L ${fmtPrice(alert.candleLow)}` : "";
+    const closeDir = alert.side === "resistance" ? "up" : "down";
+    const closeStr = `close ${fmtPrice(alert.price)} (${closeDir})`;
+    return [ts, kind, meta, `range ${pct}%`, hi, lo, closeStr]
       .filter((s) => s.length > 0)
       .join("  ");
   }

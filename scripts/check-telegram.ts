@@ -80,11 +80,12 @@ const fakeVolatility: Alert = {
   interval: "30m",
   side: "resistance",
   levelPrice: 0,
-  price: 2052.85,
+  price: 2042.5,
   bpsFromLevel: 0,
   barsSinceBreakout: 0,
-  volatilityPct: 0.0142,
-  candleOpen: 2024.1,
+  volatilityPct: 0.0178,
+  candleHigh: 2058.75,
+  candleLow: 2022.6,
 };
 
 log.info("sending fake CONFIRMED alert via Telegram driver...");

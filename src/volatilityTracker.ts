@@ -16,9 +16,11 @@ export interface VolatilityTrackerState {
 }
 
 /**
- * Emits a `VOLATILITY_SPIKE` alert whenever a closed candle's body change
- * `(close − open) / open` (signed) has |magnitude| ≥ thresholdPct percent.
- * Body-only — wicks are deliberately ignored.
+ * Emits a `VOLATILITY_SPIKE` alert whenever a closed candle's full range
+ * `(high − low) / open` reaches at least thresholdPct percent. Range-based —
+ * wicks DO count. The `side` field encodes close direction (resistance when
+ * close ≥ open, support when below) so consumers can tell up-swings from
+ * down-swings, but the magnitude is symmetric.
  *
  * Lifecycle mirrors `RsiTracker`: cursor-based dedup so each candle alerts at
  * most once, first-hydrate skip to avoid replay floods on cold start.
@@ -56,8 +58,8 @@ export class VolatilityTracker {
     for (let i = startIdx; i < closedCandles.length; i++) {
       const candle = closedCandles[i]!;
       if (candle.open > 0) {
-        const pct = (candle.close - candle.open) / candle.open;
-        if (Math.abs(pct) >= thresholdFrac) {
+        const pct = (candle.high - candle.low) / candle.open;
+        if (pct >= thresholdFrac) {
           this.emit(candle, pct, coin, interval);
         }
       }
@@ -105,13 +107,14 @@ export class VolatilityTracker {
       ts: candle.closeTime,
       coin,
       interval,
-      side: pct >= 0 ? "resistance" : "support",
+      side: candle.close >= candle.open ? "resistance" : "support",
       levelPrice: 0,
       price: candle.close,
       bpsFromLevel: 0,
       barsSinceBreakout: 0,
       volatilityPct: pct,
-      candleOpen: candle.open,
+      candleHigh: candle.high,
+      candleLow: candle.low,
     });
   }
 }
