@@ -13,14 +13,24 @@
     "typecheck": "tsc --noEmit",
     "check:telegram": "tsx scripts/check-telegram.ts",
     "backtest": "tsx strategies/run.ts",
+    "afterhours": "tsx strategies/afterhoursReversion.ts",
+    "backfill": "tsx scripts/backfill.ts",
+    "serve": "tsx server/index.ts",
+    "serve:watch": "tsx watch server/index.ts",
+    "web": "pnpm -C web dev",
+    "web:build": "pnpm -C web build",
     "analyst": "tsx analyst/run.ts",
-    "test": "tsx --test analyst/*.test.ts analyst/indicators/*.test.ts src/*.test.ts"
+    "test": "tsx --test analyst/*.test.ts analyst/indicators/*.test.ts src/*.test.ts data/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
+    "@hono/node-server": "^2.0.4",
+    "better-sqlite3": "^12.10.0",
+    "hono": "^4.12.23",
     "tsx": "^4.19.1"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.7.5",
     "typescript": "^5.6.3"
   }

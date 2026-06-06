@@ -50,3 +50,8 @@ Thumbs.db
 .eslintcache
 .cache/
 symbols.local.json
+
+# Local market-data cache (SQLite)
+data/*.db
+data/*.db-wal
+data/*.db-shm
