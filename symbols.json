@@ -14,38 +14,6 @@
   },
   "symbols": [
     {
-      "coin": "ETH",
-      "interval": "5m",
-      "alerts": [
-        "BREAKOUT",
-        "RETEST_START",
-        "CONFIRMED",
-        "INVALIDATED",
-        "EXPIRED",
-        "RSI_OVERBOUGHT",
-        "RSI_OVERSOLD",
-        "VOLATILITY_SPIKE"
-      ]
-    },
-    {
-      "coin": "ETH",
-      "interval": "15m",
-      "pollMs": 30000,
-      "alerts": ["VOLATILITY_SPIKE"]
-    },
-    {
-      "coin": "ETH",
-      "interval": "30m",
-      "pollMs": 60000,
-      "alerts": ["VOLATILITY_SPIKE"]
-    },
-    {
-      "coin": "ETH",
-      "interval": "1h",
-      "pollMs": 120000,
-      "alerts": ["VOLATILITY_SPIKE"]
-    },
-    {
       "coin": "xyz:SP500",
       "interval": "5m",
       "rsiOversold": 35,
@@ -71,6 +39,33 @@
       "pollMs": 120000,
       "rsiOversold": 35,
       "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
+    },
+    {
+      "coin": "BTC",
+      "interval": "5m",
+      "rsiOverbought": 60,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
+    },
+    {
+      "coin": "BTC",
+      "interval": "15m",
+      "pollMs": 30000,
+      "rsiOverbought": 60,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
+    },
+    {
+      "coin": "BTC",
+      "interval": "30m",
+      "pollMs": 60000,
+      "rsiOverbought": 60,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
+    },
+    {
+      "coin": "BTC",
+      "interval": "1h",
+      "pollMs": 120000,
+      "rsiOverbought": 60,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
     }
   ]
 }
