@@ -22,6 +22,11 @@ export interface PersistedState {
    * written before volatility tracking was added.
    */
   volatilityLastProcessedOpenTs?: number;
+  /**
+   * MACD tracker cursor. Optional for backwards-compat with files written
+   * before MACD tracking was added — absent => MACD tracker starts fresh.
+   */
+  macdLastProcessedOpenTs?: number;
 }
 
 export interface PersistLogger {
@@ -129,6 +134,7 @@ function validatePersisted(x: unknown): PersistedState | null {
 
   const rsiCursor = obj["rsiLastProcessedOpenTs"];
   const volatilityCursor = obj["volatilityLastProcessedOpenTs"];
+  const macdCursor = obj["macdLastProcessedOpenTs"];
   const out: PersistedState = {
     version: FILE_VERSION,
     coin: obj["coin"],
@@ -142,6 +148,9 @@ function validatePersisted(x: unknown): PersistedState | null {
   }
   if (typeof volatilityCursor === "number") {
     out.volatilityLastProcessedOpenTs = volatilityCursor;
+  }
+  if (typeof macdCursor === "number") {
+    out.macdLastProcessedOpenTs = macdCursor;
   }
   return out;
 }

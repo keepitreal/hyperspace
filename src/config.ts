@@ -1,9 +1,14 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { intervalToMs } from "./cli.js";
+import { scanMarketsByOpenInterest } from "./marketScan.js";
 import { ALL_ALERT_KINDS, INTERVALS, type AlertKind, type Config, type Interval } from "./types.js";
 
 export class ConfigError extends Error {}
+
+export interface ConfigLoadLogger {
+  info(msg: string): void;
+}
 
 const DEFAULTS = {
   lookback: 300,
@@ -18,6 +23,11 @@ const DEFAULTS = {
   rsiOverbought: 70,
   rsiOversold: 30,
   volatilityThresholdPct: 1.0,
+  macdFast: 12,
+  macdSlow: 26,
+  macdSignal: 9,
+  macdSeparationPct: 0.0003,
+  macdDebounceBars: 10,
 } as const;
 
 interface RawDefaults {
@@ -34,6 +44,11 @@ interface RawDefaults {
   rsiOverbought?: number;
   rsiOversold?: number;
   volatilityThresholdPct?: number;
+  macdFast?: number;
+  macdSlow?: number;
+  macdSignal?: number;
+  macdSeparationPct?: number;
+  macdDebounceBars?: number;
 }
 
 interface RawSymbol extends RawDefaults {
@@ -42,10 +57,18 @@ interface RawSymbol extends RawDefaults {
   alerts?: unknown;
 }
 
+/** Dynamic "scan all qualifying markets" mode (an alternative to `symbols`). */
+interface RawScan extends RawDefaults {
+  minOpenInterestUsd?: unknown;
+  interval?: unknown;
+  alerts?: unknown;
+}
+
 interface RawConfigFile {
   defaults?: RawDefaults;
   stateDir?: string;
   symbols?: RawSymbol[];
+  scan?: RawScan;
 }
 
 function isInterval(s: unknown): s is Interval {
@@ -109,6 +132,18 @@ function pickNonNegativeNumber(
 ): number {
   if (override === undefined) return fallback;
   return requireNonNegativeNumber(override, label);
+}
+
+function pickNonNegativeInt(
+  override: unknown,
+  fallback: number,
+  label: string,
+): number {
+  if (override === undefined) return fallback;
+  if (typeof override !== "number" || !Number.isInteger(override) || override < 0) {
+    throw new ConfigError(`${label} must be a non-negative integer (got ${JSON.stringify(override)})`);
+  }
+  return override;
 }
 
 function defaultPollMs(interval: Interval): number {
@@ -183,7 +218,25 @@ function buildConfig(
       merged.volatilityThresholdPct,
       label("volatilityThresholdPct"),
     ),
+    macdFast: pickPositiveInt(sym.macdFast, merged.macdFast, label("macdFast")),
+    macdSlow: pickPositiveInt(sym.macdSlow, merged.macdSlow, label("macdSlow")),
+    macdSignal: pickPositiveInt(sym.macdSignal, merged.macdSignal, label("macdSignal")),
+    macdSeparationPct: pickNonNegativeNumber(
+      sym.macdSeparationPct,
+      merged.macdSeparationPct,
+      label("macdSeparationPct"),
+    ),
+    macdDebounceBars: pickNonNegativeInt(
+      sym.macdDebounceBars,
+      merged.macdDebounceBars,
+      label("macdDebounceBars"),
+    ),
   };
+  if (config.macdFast >= config.macdSlow) {
+    throw new ConfigError(
+      `${label("macdFast")} (${config.macdFast}) must be less than ${label("macdSlow")} (${config.macdSlow})`,
+    );
+  }
   if (config.rsiOversold >= config.rsiOverbought) {
     throw new ConfigError(
       `${label("rsiOversold")} (${config.rsiOversold}) must be less than ${label("rsiOverbought")} (${config.rsiOverbought})`,
@@ -240,10 +293,66 @@ function mergeDefaults(raw: RawDefaults | undefined): Required<RawDefaults> {
       DEFAULTS.volatilityThresholdPct,
       "defaults.volatilityThresholdPct",
     ),
+    macdFast: pickPositiveInt(raw?.macdFast, DEFAULTS.macdFast, "defaults.macdFast"),
+    macdSlow: pickPositiveInt(raw?.macdSlow, DEFAULTS.macdSlow, "defaults.macdSlow"),
+    macdSignal: pickPositiveInt(raw?.macdSignal, DEFAULTS.macdSignal, "defaults.macdSignal"),
+    macdSeparationPct: pickNonNegativeNumber(
+      raw?.macdSeparationPct,
+      DEFAULTS.macdSeparationPct,
+      "defaults.macdSeparationPct",
+    ),
+    macdDebounceBars: pickNonNegativeInt(
+      raw?.macdDebounceBars,
+      DEFAULTS.macdDebounceBars,
+      "defaults.macdDebounceBars",
+    ),
   };
 }
 
-export async function loadSymbolsConfig(path: string): Promise<Config[]> {
+async function buildScanConfigs(
+  scan: RawScan,
+  merged: Required<RawDefaults>,
+  stateDir: string | undefined,
+  log: ConfigLoadLogger,
+): Promise<Config[]> {
+  if (!isInterval(scan.interval)) {
+    throw new ConfigError(
+      `scan.interval must be one of: ${INTERVALS.join(", ")} (got ${JSON.stringify(scan.interval)})`,
+    );
+  }
+  const minOi = requireNonNegativeNumber(scan.minOpenInterestUsd, "scan.minOpenInterestUsd");
+  // Validate the alert allowlist up front; default to MACD-only when omitted.
+  const alerts = pickAlertKinds(scan.alerts, "scan.alerts") ?? ["MACD_CROSSOVER"];
+
+  log.info(`scan: querying Hyperliquid open interest (>= $${minOi.toLocaleString()})...`);
+  const coins = await scanMarketsByOpenInterest(minOi);
+  log.info(`scan: ${coins.length} markets qualified on ${scan.interval}`);
+  if (coins.length === 0) {
+    throw new ConfigError(
+      `scan: no markets met the $${minOi.toLocaleString()} open-interest threshold`,
+    );
+  }
+
+  const configs: Config[] = [];
+  for (let i = 0; i < coins.length; i++) {
+    // Reuse the per-symbol builder so all validation/defaults apply uniformly.
+    // Spread the scan-level tunables (lookback, pollMs, macd*, …) and override
+    // the per-coin identity + alert allowlist.
+    const sym = {
+      ...scan,
+      coin: coins[i],
+      interval: scan.interval,
+      alerts,
+    } as RawSymbol;
+    configs.push(buildConfig(sym, merged, stateDir, i));
+  }
+  return configs;
+}
+
+export async function loadSymbolsConfig(
+  path: string,
+  log: ConfigLoadLogger = { info: () => {} },
+): Promise<Config[]> {
   let raw: string;
   try {
     raw = await readFile(path, "utf8");
@@ -260,15 +369,22 @@ export async function loadSymbolsConfig(path: string): Promise<Config[]> {
     throw new ConfigError(`Config file at ${path} is not valid JSON: ${msg}`);
   }
 
-  if (!Array.isArray(parsed.symbols) || parsed.symbols.length === 0) {
-    throw new ConfigError(`Config file at ${path} must have a non-empty "symbols" array`);
-  }
-
   const merged = mergeDefaults(parsed.defaults);
   const stateDir =
     typeof parsed.stateDir === "string" && parsed.stateDir.length > 0
       ? parsed.stateDir
       : undefined;
+
+  // Dynamic scan mode takes precedence over an explicit symbols list.
+  if (parsed.scan !== undefined) {
+    return buildScanConfigs(parsed.scan, merged, stateDir, log);
+  }
+
+  if (!Array.isArray(parsed.symbols) || parsed.symbols.length === 0) {
+    throw new ConfigError(
+      `Config file at ${path} must have a non-empty "symbols" array or a "scan" block`,
+    );
+  }
 
   const configs: Config[] = [];
   const seen = new Set<string>();

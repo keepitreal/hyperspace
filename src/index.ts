@@ -4,6 +4,7 @@ import { fetchCandles, splitClosed } from "./hyperliquid.js";
 import { detectLevels } from "./levels.js";
 import { formatStatus, makeLogger } from "./log.js";
 import { buildNotifier, type Notifier } from "./notify/index.js";
+import { MacdTracker } from "./macdTracker.js";
 import { JsonStateStore } from "./persist.js";
 import { debugFeatures } from "./quality.js";
 import { RsiTracker } from "./rsiTracker.js";
@@ -112,6 +113,14 @@ async function run(
     thresholdPct: config.volatilityThresholdPct,
   });
 
+  const macdTracker = new MacdTracker({
+    fast: config.macdFast,
+    slow: config.macdSlow,
+    signal: config.macdSignal,
+    separationPct: config.macdSeparationPct,
+    debounceBars: config.macdDebounceBars,
+  });
+
   const store =
     config.stateFile !== undefined ? new JsonStateStore(config.stateFile, log) : null;
   const intervalMs = intervalToMs(config.interval);
@@ -137,6 +146,12 @@ async function run(
           { clampOpenTsTo },
         );
       }
+      if (loaded.macdLastProcessedOpenTs !== undefined) {
+        macdTracker.hydrate(
+          { lastProcessedOpenTs: loaded.macdLastProcessedOpenTs },
+          { clampOpenTsTo },
+        );
+      }
       const ageMinutes = Math.round(ageMs / 60_000);
       log.info(
         `state: hydrated ${loaded.setups.length} setups from ${config.stateFile} (saved ${ageMinutes}m ago${clamped ? `, clamped to last ${config.maxReplayBars} bars` : ""})`,
@@ -158,16 +173,19 @@ async function run(
   let lastSavedCursor = tracker.getLastProcessedOpenTs();
   let lastSavedRsiCursor = rsiTracker.getLastProcessedOpenTs();
   let lastSavedVolatilityCursor = volatilityTracker.getLastProcessedOpenTs();
+  let lastSavedMacdCursor = macdTracker.getLastProcessedOpenTs();
 
   const persistIfChanged = async (): Promise<void> => {
     if (store === null) return;
     const cursor = tracker.getLastProcessedOpenTs();
     const rsiCursor = rsiTracker.getLastProcessedOpenTs();
     const volatilityCursor = volatilityTracker.getLastProcessedOpenTs();
+    const macdCursor = macdTracker.getLastProcessedOpenTs();
     if (
       cursor === lastSavedCursor &&
       rsiCursor === lastSavedRsiCursor &&
-      volatilityCursor === lastSavedVolatilityCursor
+      volatilityCursor === lastSavedVolatilityCursor &&
+      macdCursor === lastSavedMacdCursor
     ) {
       return;
     }
@@ -179,10 +197,12 @@ async function run(
       setups: dumped.setups,
       rsiLastProcessedOpenTs: rsiCursor,
       volatilityLastProcessedOpenTs: volatilityCursor,
+      macdLastProcessedOpenTs: macdCursor,
     });
     lastSavedCursor = cursor;
     lastSavedRsiCursor = rsiCursor;
     lastSavedVolatilityCursor = volatilityCursor;
+    lastSavedMacdCursor = macdCursor;
   };
 
   while (!signal.aborted) {
@@ -216,11 +236,17 @@ async function run(
         coin: config.coin,
         interval: config.interval,
       });
+      macdTracker.update({
+        closedCandles: closed,
+        coin: config.coin,
+        interval: config.interval,
+      });
 
       const drained: Alert[] = [
         ...tracker.drainAlerts(),
         ...rsiTracker.drainAlerts(),
         ...volatilityTracker.drainAlerts(),
+        ...macdTracker.drainAlerts(),
       ];
       for (const alert of drained) {
         if (allows(alert.kind, config.alerts)) {
@@ -293,7 +319,7 @@ async function resolveConfigs(): Promise<Config[]> {
   const parsed = parseArgs(process.argv.slice(2));
   if (parsed.kind === "single") return [parsed.config];
   try {
-    const configs = await loadSymbolsConfig(parsed.configPath);
+    const configs = await loadSymbolsConfig(parsed.configPath, log);
     log.info(`config: loaded ${configs.length} symbols from ${parsed.configPath}`);
     return configs;
   } catch (e) {

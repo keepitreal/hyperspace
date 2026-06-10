@@ -59,6 +59,8 @@ function alertColor(kind: AlertKind): string {
       return ANSI.blue;
     case "VOLATILITY_SPIKE":
       return ANSI.yellow;
+    case "MACD_CROSSOVER":
+      return ANSI.cyan;
   }
 }
 
@@ -112,6 +114,13 @@ export function formatAlert(alert: Alert): string {
     return [ts, kind, meta, `range ${pct}%`, hi, lo, closeStr]
       .filter((s) => s.length > 0)
       .join("  ");
+  }
+  if (alert.kind === "MACD_CROSSOVER") {
+    const dir = alert.macdCross ?? "n/a";
+    const dirStr = colorize(dir, dir === "bullish" ? ANSI.green : ANSI.red);
+    const hist = alert.macdHistogram !== undefined ? `hist ${alert.macdHistogram.toFixed(4)}` : "";
+    const priceStr = `px ${fmtPrice(alert.price)}`;
+    return [ts, kind, meta, dirStr, hist, priceStr].filter((s) => s.length > 0).join("  ");
   }
   const sideTag = colorize(alert.side, alert.side === "resistance" ? ANSI.red : ANSI.green);
   const levelStr = `${sideTag} ${fmtPrice(alert.levelPrice)}`;

@@ -80,7 +80,8 @@ export type AlertKind =
   | "EXPIRED"
   | "RSI_OVERBOUGHT"
   | "RSI_OVERSOLD"
-  | "VOLATILITY_SPIKE";
+  | "VOLATILITY_SPIKE"
+  | "MACD_CROSSOVER";
 
 /** Runtime list — keep in sync with AlertKind union. Used for config validation. */
 export const ALL_ALERT_KINDS: readonly AlertKind[] = [
@@ -92,6 +93,7 @@ export const ALL_ALERT_KINDS: readonly AlertKind[] = [
   "RSI_OVERBOUGHT",
   "RSI_OVERSOLD",
   "VOLATILITY_SPIKE",
+  "MACD_CROSSOVER",
 ];
 
 export interface Alert {
@@ -118,6 +120,14 @@ export interface Alert {
   candleHigh?: number;
   /** Candle low. Only on VOLATILITY_SPIKE. */
   candleLow?: number;
+  /** Crossover direction. Only on MACD_CROSSOVER. */
+  macdCross?: "bullish" | "bearish";
+  /** MACD line (fast EMA − slow EMA) at the crossover bar. Only on MACD_CROSSOVER. */
+  macdLine?: number;
+  /** MACD signal line (EMA of the MACD line) at the crossover bar. Only on MACD_CROSSOVER. */
+  macdSignal?: number;
+  /** MACD histogram (line − signal) at the crossover bar. Only on MACD_CROSSOVER. */
+  macdHistogram?: number;
 }
 
 export interface Config {
@@ -143,6 +153,20 @@ export interface Config {
   rsiOversold: number;
   /** Body change (close-open)/open percentage; fires VOLATILITY_SPIKE when |body| >= this. Default 1.0 (=1%). */
   volatilityThresholdPct: number;
+  /** MACD fast EMA period. Default 12. */
+  macdFast: number;
+  /** MACD slow EMA period. Default 26. */
+  macdSlow: number;
+  /** MACD signal EMA period. Default 9. */
+  macdSignal: number;
+  /**
+   * Minimum cross magnitude to fire MACD_CROSSOVER, as a fraction of price:
+   * fires only when |histogram| / close >= this at the crossover bar. Price-
+   * normalized so one value is comparable across all scanned markets. Default 0.0003.
+   */
+  macdSeparationPct: number;
+  /** Suppress a MACD_CROSSOVER if another crossover occurred within this many prior bars. Default 10. */
+  macdDebounceBars: number;
   /** Optional per-monitor inclusion list of alert kinds. Undefined = all kinds emit. */
   alerts?: readonly AlertKind[];
 }

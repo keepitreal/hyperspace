@@ -2,7 +2,7 @@
 
 A read-only TypeScript toolkit for analyzing [Hyperliquid](https://hyperliquid.xyz) perp markets. Three independent components share the same indicator library and data layer:
 
-- **Live monitor** (`pnpm start`) — polls candle data, auto-detects support/resistance, runs a breakout/retest state machine, plus RSI and body-volatility alerts. Persists state, ships notifications to Telegram.
+- **Live monitor** (`pnpm start`) — polls candle data, auto-detects support/resistance, runs a breakout/retest state machine, plus RSI, body-volatility, and MACD-crossover alerts. Can also scan every Hyperliquid market above an open-interest threshold. Persists state, ships notifications to Telegram.
 - **Backtest harness** (`pnpm backtest`) — pulls history from Hyperliquid (no local storage), runs strategies against it, prints summary metrics with MAE analysis for stop-placement insight. See [`strategies/README.md`](strategies/README.md).
 - **Market analyst** (`pnpm analyst`) — computes 15 indicators across 4 timeframes for a coin, hands the snapshot to Claude Opus, prints a structured technical read to stdout and Telegram.
 
@@ -28,7 +28,7 @@ Either `export` the values in your shell or copy `.env.example` to `.env` and fi
 | `TELEGRAM_BOT_TOKEN` | Telegram alerts | Bot token from `@BotFather`. |
 | `TELEGRAM_CHAT_ID` | Telegram alerts | Numeric chat ID for the recipient. |
 | `ANTHROPIC_API_KEY` | `pnpm analyst` | API key from `console.anthropic.com`. Claude Max plans do **not** grant API access — pay-as-you-go billing required. |
-| `HYPERSPACE_ALERT_KINDS` | optional | Comma-separated kinds sent to Telegram. Default: `BREAKOUT,RETEST_START,CONFIRMED,RSI_OVERBOUGHT,RSI_OVERSOLD,VOLATILITY_SPIKE`. Console output is always unfiltered. |
+| `HYPERSPACE_ALERT_KINDS` | optional | Comma-separated kinds sent to Telegram. Default: `BREAKOUT,RETEST_START,CONFIRMED,RSI_OVERBOUGHT,RSI_OVERSOLD,VOLATILITY_SPIKE,MACD_CROSSOVER`. Console output is always unfiltered. |
 | `HYPERSPACE_DEBUG` | optional | Set `=1` to print per-bar indicator features in the status line. |
 
 ---
@@ -80,6 +80,28 @@ pnpm start --config symbols.json
 
 Each `symbols[]` entry runs its own poll loop. The same coin can appear multiple times at different intervals — each entry has its own state file (`state-<coin>-<interval>.json` inside `stateDir`). All fields in `defaults` can be overridden per entry. The optional `alerts` array restricts which kinds that monitor emits; omit it to emit every kind the trackers produce.
 
+### Scan mode (dynamic universe)
+
+Instead of an explicit `symbols[]` list, a config file may declare a `scan` block. At startup the monitor queries Hyperliquid open interest across every perp DEX (main + builder-deployed, e.g. `xyz:`) and spins up one poll loop per coin whose notional open interest (`openInterest × markPx`) meets the threshold. The set is snapshotted once at startup — restart to refresh.
+
+```jsonc
+{
+  "stateDir": "/data",
+  "scan": {
+    "minOpenInterestUsd": 50000000,   // qualify coins with >= $50M OI
+    "interval": "15m",                // all qualifying coins monitored on this interval
+    "alerts": ["MACD_CROSSOVER"],     // mute everything except MACD crossovers
+    "macdFast": 12,
+    "macdSlow": 26,
+    "macdSignal": 9,
+    "macdSeparationPct": 0.0003,       // min |histogram|/price at the cross (0.03%)
+    "macdDebounceBars": 10             // skip a cross within 10 bars of a prior one
+  }
+}
+```
+
+`scan` and `symbols` are mutually exclusive — when `scan` is present it takes precedence. `defaults` still apply (e.g. `pollMs`, `lookback`, `maxReplayBars`), and any field above falls back to its default when omitted.
+
 ### Alert kinds
 
 | Kind | Trigger |
@@ -91,6 +113,7 @@ Each `symbols[]` entry runs its own poll loop. The same coin can appear multiple
 | `EXPIRED` | `retestBars` pass without a retest. |
 | `RSI_OVERBOUGHT` / `RSI_OVERSOLD` | Wilder RSI(14) ≥ `rsiOverbought` or ≤ `rsiOversold` on a closed candle. |
 | `VOLATILITY_SPIKE` | A closed candle's full range `(high − low) / open` ≥ `volatilityThresholdPct%`. Wicks included. `side` reflects close direction: `resistance` if close ≥ open, `support` otherwise. |
+| `MACD_CROSSOVER` | The MACD line (EMA `macdFast` − EMA `macdSlow`) crosses its signal line (EMA `macdSignal`) on a closed candle — i.e. the histogram changes sign. Fires only when `\|histogram\| / close ≥ macdSeparationPct` (price-normalized, so it is comparable across all scanned markets) and no other crossover occurred in the prior `macdDebounceBars` bars. `macdCross` is `bullish` (`side` resistance) or `bearish` (`side` support). |
 
 ### Single-symbol CLI flags
 
@@ -110,6 +133,9 @@ Each `symbols[]` entry runs its own poll loop. The same coin can appear multiple
 | `--rsi-overbought` | `70` | Fires `RSI_OVERBOUGHT` at or above this value. |
 | `--rsi-oversold` | `30` | Fires `RSI_OVERSOLD` at or below this value. |
 | `--volatility-threshold-pct` | `1.0` | Fires `VOLATILITY_SPIKE` when `|close-open|/open ≥` this %. |
+| `--macd-fast` / `--macd-slow` / `--macd-signal` | `12` / `26` / `9` | MACD EMA periods (source = close). |
+| `--macd-separation-pct` | `0.0003` | Min `|histogram|/price` at the cross to fire `MACD_CROSSOVER`. |
+| `--macd-debounce-bars` | `10` | Suppress a crossover within this many bars of a prior one. |
 | `--alerts` | _emit all_ | CSV inclusion list of alert kinds for this monitor. |
 | `--state-file` | _off_ | Persist tracker state to this JSON path. |
 | `--max-replay-bars` | `50` | Cap on candles to replay after an outage longer than the cursor. |
@@ -122,6 +148,7 @@ Each `symbols[]` entry runs its own poll loop. The same coin can appear multiple
 [2026-05-29 20:54:59]  BREAKOUT      ETH 5m   support 2021.70     px 2017.10 (-0.23%)  confidence 57/100 MEDIUM (close +24, volume 0, atr +15, wick 0, level 0, time +10, vwap +8)
 [2026-05-29 21:30:00]  VOLATILITY_SPIKE  ETH 30m  range 1.78%  H 2058.75  L 2022.60  close 2042.50 (up)
 [2026-05-30 08:15:00]  RSI_OVERSOLD  ETH 5m   RSI 28.4   px 1987.20
+[2026-05-30 09:00:00]  MACD_CROSSOVER  BTC 15m  bullish  hist 12.3400  px 61742.00
 ```
 
 ### Breakout confidence scoring
@@ -143,7 +170,7 @@ Buckets: `HIGH ≥ 75`, `MEDIUM ≥ 50`, `LOW ≥ 25`, `VERY_LOW < 25`.
 When `stateDir` is set in `symbols.json` (or `--state-file` is passed in single-symbol mode), each monitor writes a JSON state file containing:
 
 - In-flight setups (`BROKEN`, `RETESTING`, cooldowns) — so retests survive restarts.
-- Three cursors: the SetupTracker, RsiTracker, and VolatilityTracker last-processed candle openTimes — so already-evaluated bars aren't re-emitted.
+- Four cursors: the SetupTracker, RsiTracker, VolatilityTracker, and MacdTracker last-processed candle openTimes — so already-evaluated bars aren't re-emitted.
 
 Saves are atomic (`tmp` + `rename`) and happen after each poll that advances any cursor, plus once on graceful shutdown (SIGINT/SIGTERM).
 

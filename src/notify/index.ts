@@ -20,6 +20,7 @@ const DEFAULT_REMOTE_KINDS: ReadonlySet<AlertKind> = new Set<AlertKind>([
   "RSI_OVERBOUGHT",
   "RSI_OVERSOLD",
   "VOLATILITY_SPIKE",
+  "MACD_CROSSOVER",
 ]);
 
 const ALL_KINDS: ReadonlySet<AlertKind> = new Set<AlertKind>([
@@ -31,6 +32,7 @@ const ALL_KINDS: ReadonlySet<AlertKind> = new Set<AlertKind>([
   "RSI_OVERBOUGHT",
   "RSI_OVERSOLD",
   "VOLATILITY_SPIKE",
+  "MACD_CROSSOVER",
 ]);
 
 function parseKinds(raw: string | undefined, log: NotifyLogger): ReadonlySet<AlertKind> {

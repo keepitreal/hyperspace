@@ -1,71 +1,13 @@
 {
   "stateDir": "/data",
-  "defaults": {
-    "lookback": 300,
-    "pollMs": 5000,
-    "pivotWindow": 5,
-    "clusterBps": 25,
-    "breakBps": 10,
-    "retestBps": 15,
-    "retestBars": 20,
-    "maxLevels": 8,
-    "maxReplayBars": 50,
-    "volatilityThresholdPct": 0.5
-  },
-  "symbols": [
-    {
-      "coin": "xyz:SP500",
-      "interval": "5m",
-      "rsiOversold": 35,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
-    },
-    {
-      "coin": "xyz:SP500",
-      "interval": "15m",
-      "pollMs": 30000,
-      "rsiOversold": 35,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
-    },
-    {
-      "coin": "xyz:SP500",
-      "interval": "30m",
-      "pollMs": 60000,
-      "rsiOversold": 35,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
-    },
-    {
-      "coin": "xyz:SP500",
-      "interval": "1h",
-      "pollMs": 120000,
-      "rsiOversold": 35,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD", "VOLATILITY_SPIKE"]
-    },
-    {
-      "coin": "BTC",
-      "interval": "5m",
-      "rsiOverbought": 60,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
-    },
-    {
-      "coin": "BTC",
-      "interval": "15m",
-      "pollMs": 30000,
-      "rsiOverbought": 60,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
-    },
-    {
-      "coin": "BTC",
-      "interval": "30m",
-      "pollMs": 60000,
-      "rsiOverbought": 60,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
-    },
-    {
-      "coin": "BTC",
-      "interval": "1h",
-      "pollMs": 120000,
-      "rsiOverbought": 60,
-      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
-    }
-  ]
+  "scan": {
+    "minOpenInterestUsd": 50000000,
+    "interval": "15m",
+    "alerts": ["MACD_CROSSOVER"],
+    "macdFast": 12,
+    "macdSlow": 26,
+    "macdSignal": 9,
+    "macdSeparationPct": 0.0003,
+    "macdDebounceBars": 10
+  }
 }

@@ -95,6 +95,14 @@ function parseNonNegativeNumber(raw: string, key: string): number {
   return n;
 }
 
+function parseNonNegativeInt(raw: string, key: string): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
+    throw new CliError(`Flag --${key} must be a non-negative integer (got "${raw}")`);
+  }
+  return n;
+}
+
 function isInterval(s: string): s is Interval {
   return (INTERVALS as readonly string[]).includes(s);
 }
@@ -116,6 +124,11 @@ const KNOWN_FLAGS = new Set([
   "rsi-overbought",
   "rsi-oversold",
   "volatility-threshold-pct",
+  "macd-fast",
+  "macd-slow",
+  "macd-signal",
+  "macd-separation-pct",
+  "macd-debounce-bars",
   "alerts",
   "config",
   "help",
@@ -224,6 +237,21 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     throw new CliError("--volatility-threshold-pct must be > 0");
   }
 
+  const macdFast = parsePositiveInt(optionalString(args, "macd-fast") ?? "12", "macd-fast");
+  const macdSlow = parsePositiveInt(optionalString(args, "macd-slow") ?? "26", "macd-slow");
+  const macdSignal = parsePositiveInt(optionalString(args, "macd-signal") ?? "9", "macd-signal");
+  if (macdFast >= macdSlow) {
+    throw new CliError(`--macd-fast (${macdFast}) must be less than --macd-slow (${macdSlow})`);
+  }
+  const macdSeparationPct = parseNonNegativeNumber(
+    optionalString(args, "macd-separation-pct") ?? "0.0003",
+    "macd-separation-pct",
+  );
+  const macdDebounceBars = parseNonNegativeInt(
+    optionalString(args, "macd-debounce-bars") ?? "10",
+    "macd-debounce-bars",
+  );
+
   const alertsRaw = optionalString(args, "alerts");
   let alerts: AlertKind[] | undefined;
   if (alertsRaw !== undefined) {
@@ -270,6 +298,11 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     rsiOverbought,
     rsiOversold,
     volatilityThresholdPct,
+    macdFast,
+    macdSlow,
+    macdSignal,
+    macdSeparationPct,
+    macdDebounceBars,
   };
   if (stateFile !== undefined) config.stateFile = stateFile;
   if (alerts !== undefined) config.alerts = alerts;
@@ -308,6 +341,13 @@ export function usage(): string {
     "",
     "Volatility:",
     "  --volatility-threshold-pct <pct>  Fire VOLATILITY_SPIKE when |close-open|/open >= pct (default 1.0)",
+    "",
+    "MACD:",
+    "  --macd-fast <n>          Fast EMA period (default 12)",
+    "  --macd-slow <n>          Slow EMA period (default 26)",
+    "  --macd-signal <n>        Signal EMA period (default 9)",
+    "  --macd-separation-pct <p>  Min |histogram|/price at the cross to fire (default 0.0003)",
+    "  --macd-debounce-bars <n>   Suppress a cross within N prior bars of another (default 10)",
     "",
     "Alert filtering:",
     `  --alerts <CSV>           Restrict emitted alerts to listed kinds (omit = all). Valid: ${ALL_ALERT_KINDS.join(", ")}`,

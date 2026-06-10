@@ -68,6 +68,15 @@ export function formatTelegramMessage(alert: Alert): string {
     lines.push(`close ${fmtPrice(alert.price)} (${escapeHtml(closeDir)})`);
     return lines.join("\n");
   }
+  if (alert.kind === "MACD_CROSSOVER") {
+    const dir = alert.macdCross ?? "n/a";
+    lines.push(`cross <b>${escapeHtml(dir)}</b>`);
+    if (alert.macdHistogram !== undefined) {
+      lines.push(`hist ${alert.macdHistogram.toFixed(4)}`);
+    }
+    lines.push(`px ${fmtPrice(alert.price)}`);
+    return lines.join("\n");
+  }
   const side = escapeHtml(alert.side);
   lines.push(`${side} <b>${fmtPrice(alert.levelPrice)}</b>`);
   lines.push(`px ${fmtPrice(alert.price)} (${fmtBps(alert.bpsFromLevel)})`);
