@@ -119,7 +119,6 @@ async function run(
     signal: config.macdSignal,
     separationPct: config.macdSeparationPct,
     debounceBars: config.macdDebounceBars,
-    requireZeroLineSide: config.macdRequireZeroLineSide,
   });
 
   const store =

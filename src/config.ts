@@ -28,7 +28,6 @@ const DEFAULTS = {
   macdSignal: 9,
   macdSeparationPct: 0.0003,
   macdDebounceBars: 10,
-  macdRequireZeroLineSide: true,
 } as const;
 
 interface RawDefaults {
@@ -50,7 +49,6 @@ interface RawDefaults {
   macdSignal?: number;
   macdSeparationPct?: number;
   macdDebounceBars?: number;
-  macdRequireZeroLineSide?: boolean;
 }
 
 interface RawSymbol extends RawDefaults {
@@ -151,14 +149,6 @@ function pickNonNegativeInt(
   return override;
 }
 
-function pickBoolean(override: unknown, fallback: boolean, label: string): boolean {
-  if (override === undefined) return fallback;
-  if (typeof override !== "boolean") {
-    throw new ConfigError(`${label} must be a boolean (got ${JSON.stringify(override)})`);
-  }
-  return override;
-}
-
 function defaultPollMs(interval: Interval): number {
   return Math.min(60_000, Math.max(1_000, Math.floor(intervalToMs(interval) / 3)));
 }
@@ -244,11 +234,6 @@ function buildConfig(
       merged.macdDebounceBars,
       label("macdDebounceBars"),
     ),
-    macdRequireZeroLineSide: pickBoolean(
-      sym.macdRequireZeroLineSide,
-      merged.macdRequireZeroLineSide,
-      label("macdRequireZeroLineSide"),
-    ),
   };
   if (config.macdFast >= config.macdSlow) {
     throw new ConfigError(
@@ -323,11 +308,6 @@ function mergeDefaults(raw: RawDefaults | undefined): Required<RawDefaults> {
       raw?.macdDebounceBars,
       DEFAULTS.macdDebounceBars,
       "defaults.macdDebounceBars",
-    ),
-    macdRequireZeroLineSide: pickBoolean(
-      raw?.macdRequireZeroLineSide,
-      DEFAULTS.macdRequireZeroLineSide,
-      "defaults.macdRequireZeroLineSide",
     ),
   };
 }

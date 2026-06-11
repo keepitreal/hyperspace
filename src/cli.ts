@@ -103,12 +103,6 @@ function parseNonNegativeInt(raw: string, key: string): number {
   return n;
 }
 
-function parseBoolean(raw: string | true, key: string): boolean {
-  if (raw === true || raw === "true") return true;
-  if (raw === "false") return false;
-  throw new CliError(`Flag --${key} must be true or false (got "${raw}")`);
-}
-
 function isInterval(s: string): s is Interval {
   return (INTERVALS as readonly string[]).includes(s);
 }
@@ -135,7 +129,6 @@ const KNOWN_FLAGS = new Set([
   "macd-signal",
   "macd-separation-pct",
   "macd-debounce-bars",
-  "macd-require-zero-line-side",
   "alerts",
   "config",
   "help",
@@ -258,11 +251,6 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     optionalString(args, "macd-debounce-bars") ?? "10",
     "macd-debounce-bars",
   );
-  const macdRequireZeroLineSideRaw = args["macd-require-zero-line-side"];
-  const macdRequireZeroLineSide =
-    macdRequireZeroLineSideRaw === undefined
-      ? true
-      : parseBoolean(macdRequireZeroLineSideRaw, "macd-require-zero-line-side");
 
   const alertsRaw = optionalString(args, "alerts");
   let alerts: AlertKind[] | undefined;
@@ -315,7 +303,6 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     macdSignal,
     macdSeparationPct,
     macdDebounceBars,
-    macdRequireZeroLineSide,
   };
   if (stateFile !== undefined) config.stateFile = stateFile;
   if (alerts !== undefined) config.alerts = alerts;
@@ -361,7 +348,6 @@ export function usage(): string {
     "  --macd-signal <n>        Signal EMA period (default 9)",
     "  --macd-separation-pct <p>  Min |histogram|/price at the cross to fire (default 0.0003)",
     "  --macd-debounce-bars <n>   Suppress a cross within N prior bars of another (default 10)",
-    "  --macd-require-zero-line-side <true|false>  Only fire when MACD line sign matches the cross (default true)",
     "",
     "Alert filtering:",
     `  --alerts <CSV>           Restrict emitted alerts to listed kinds (omit = all). Valid: ${ALL_ALERT_KINDS.join(", ")}`,

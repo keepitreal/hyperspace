@@ -23,14 +23,7 @@ const SINE: number[] = Array.from(
   (_, i) => 100 + Math.sin(i / 3) * 6 + Math.sin(i / 1.7) * 3,
 );
 
-const BASE: MacdTrackerConfig = {
-  fast: 12,
-  slow: 26,
-  signal: 9,
-  separationPct: 0,
-  debounceBars: 0,
-  requireZeroLineSide: false,
-};
+const BASE: MacdTrackerConfig = { fast: 12, slow: 26, signal: 9, separationPct: 0, debounceBars: 0 };
 
 /** Seed the cursor with the first `seed` candles, then process the rest in one update. */
 function runOverSine(cfg: MacdTrackerConfig, seed = 40): ReturnType<MacdTracker["drainAlerts"]> {
@@ -83,40 +76,6 @@ test("MacdTracker: debounce suppresses crossovers within N prior bars", () => {
     const gap = debounced[i]!.ts - debounced[i - 1]!.ts;
     assert.ok(gap >= 10 * 1000, `crosses ${i - 1}->${i} too close: ${gap}ms`);
   }
-});
-
-test("MacdTracker: requireZeroLineSide keeps only zero-consistent crosses", () => {
-  // A trending series (uptrend then downtrend, both with wiggles) yields signal
-  // crosses on both sides of zero — unlike a pure oscillator, where every cross
-  // lands on the "wrong" side. The gate must keep bullish>0 / bearish<0 only.
-  const trend = Array.from({ length: 300 }, (_, i) => {
-    const slope = i < 150 ? i * 0.6 : (300 - i) * 0.6;
-    return 100 + slope + Math.sin(i / 3) * 5;
-  });
-  const candles = candlesFromCloses(trend);
-  const run = (requireZeroLineSide: boolean): ReturnType<MacdTracker["drainAlerts"]> => {
-    const t = new MacdTracker({ ...BASE, requireZeroLineSide });
-    t.update({ closedCandles: candles.slice(0, 40), coin: "ETH", interval: "15m" });
-    t.drainAlerts();
-    t.update({ closedCandles: candles, coin: "ETH", interval: "15m" });
-    return t.drainAlerts();
-  };
-
-  const unfiltered = run(false);
-  const filtered = run(true);
-  assert.ok(filtered.length < unfiltered.length, "zero-line gate should drop some crosses");
-  assert.ok(filtered.length > 0, "but not all");
-  for (const a of filtered) {
-    if (a.macdCross === "bullish") {
-      assert.ok(a.macdLine! > 0, `bullish cross must be above zero, got ${a.macdLine}`);
-    } else {
-      assert.ok(a.macdLine! < 0, `bearish cross must be below zero, got ${a.macdLine}`);
-    }
-  }
-  const wrongSide = unfiltered.filter(
-    (a) => (a.macdCross === "bullish" && a.macdLine! <= 0) || (a.macdCross === "bearish" && a.macdLine! >= 0),
-  );
-  assert.ok(wrongSide.length > 0, "expected the series to contain wrong-side crosses");
 });
 
 test("MacdTracker: cursor dedups already-processed candles", () => {

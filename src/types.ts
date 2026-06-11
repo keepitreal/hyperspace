@@ -167,11 +167,6 @@ export interface Config {
   macdSeparationPct: number;
   /** Suppress a MACD_CROSSOVER if another crossover occurred within this many prior bars. Default 10. */
   macdDebounceBars: number;
-  /**
-   * When true, only fire MACD_CROSSOVER when the MACD line is on the trend-consistent
-   * side of the zero line: bullish requires line > 0, bearish line < 0. Default true.
-   */
-  macdRequireZeroLineSide: boolean;
   /** Optional per-monitor inclusion list of alert kinds. Undefined = all kinds emit. */
   alerts?: readonly AlertKind[];
 }
