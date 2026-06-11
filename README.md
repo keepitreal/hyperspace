@@ -95,7 +95,8 @@ Instead of an explicit `symbols[]` list, a config file may declare a `scan` bloc
     "macdSlow": 26,
     "macdSignal": 9,
     "macdSeparationPct": 0.0003,        // min |histogram|/price at the cross (0.03%)
-    "macdDebounceBars": 10             // skip a cross within 10 bars of a prior one
+    "macdDebounceBars": 10,            // skip a cross within 10 bars of a prior one
+    "macdRequireZeroLineSide": true    // bullish only above the zero line, bearish only below
   }
 }
 ```
@@ -113,7 +114,7 @@ Use `intervals` (an array) to monitor several timeframes, or `interval` (a singl
 | `EXPIRED` | `retestBars` pass without a retest. |
 | `RSI_OVERBOUGHT` / `RSI_OVERSOLD` | Wilder RSI(14) ≥ `rsiOverbought` or ≤ `rsiOversold` on a closed candle. |
 | `VOLATILITY_SPIKE` | A closed candle's full range `(high − low) / open` ≥ `volatilityThresholdPct%`. Wicks included. `side` reflects close direction: `resistance` if close ≥ open, `support` otherwise. |
-| `MACD_CROSSOVER` | The MACD line (EMA `macdFast` − EMA `macdSlow`) crosses its signal line (EMA `macdSignal`) on a closed candle — i.e. the histogram changes sign. Fires only when `\|histogram\| / close ≥ macdSeparationPct` (price-normalized, so it is comparable across all scanned markets) and no other crossover occurred in the prior `macdDebounceBars` bars. `macdCross` is `bullish` (`side` resistance) or `bearish` (`side` support). The alert also reports the MACD line's signed distance from the zero line at the cross (`zero`), shown raw and as % of price. |
+| `MACD_CROSSOVER` | The MACD line (EMA `macdFast` − EMA `macdSlow`) crosses its signal line (EMA `macdSignal`) on a closed candle — i.e. the histogram changes sign. Fires only when `\|histogram\| / close ≥ macdSeparationPct` (price-normalized, so it is comparable across all scanned markets), no other crossover occurred in the prior `macdDebounceBars` bars, and (when `macdRequireZeroLineSide`, the default) the MACD line is on the trend-consistent side of the zero line — bullish above zero, bearish below. `macdCross` is `bullish` (`side` resistance) or `bearish` (`side` support). The alert also reports the MACD line's signed distance from the zero line at the cross (`zero`), shown raw and as % of price. |
 
 ### Single-symbol CLI flags
 
@@ -136,6 +137,7 @@ Use `intervals` (an array) to monitor several timeframes, or `interval` (a singl
 | `--macd-fast` / `--macd-slow` / `--macd-signal` | `12` / `26` / `9` | MACD EMA periods (source = close). |
 | `--macd-separation-pct` | `0.0003` | Min `|histogram|/price` at the cross to fire `MACD_CROSSOVER`. |
 | `--macd-debounce-bars` | `10` | Suppress a crossover within this many bars of a prior one. |
+| `--macd-require-zero-line-side` | `true` | Only fire when the MACD line matches the cross side of zero (bullish > 0, bearish < 0). |
 | `--alerts` | _emit all_ | CSV inclusion list of alert kinds for this monitor. |
 | `--state-file` | _off_ | Persist tracker state to this JSON path. |
 | `--max-replay-bars` | `50` | Cap on candles to replay after an outage longer than the cursor. |

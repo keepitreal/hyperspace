@@ -8,6 +8,7 @@
     "macdSlow": 26,
     "macdSignal": 9,
     "macdSeparationPct": 0.0003,
-    "macdDebounceBars": 10
+    "macdDebounceBars": 10,
+    "macdRequireZeroLineSide": true
   }
 }

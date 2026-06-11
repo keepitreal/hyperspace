@@ -12,6 +12,11 @@ export interface MacdTrackerConfig {
   separationPct: number;
   /** Suppress a crossover if another crossover happened within this many prior bars. */
   debounceBars: number;
+  /**
+   * When true, only fire when the MACD line sits on the trend-consistent side of
+   * the zero line at the cross: bullish requires line > 0, bearish requires line < 0.
+   */
+  requireZeroLineSide: boolean;
 }
 
 export interface MacdUpdateInput {
@@ -28,6 +33,7 @@ export interface MacdTrackerState {
  * Emits MACD_CROSSOVER when the MACD line crosses its signal line (histogram
  * changes sign) on a newly closed candle. Three gates:
  *  - direction: bullish (hist ≤0 → >0) or bearish (hist ≥0 → <0)
+ *  - zero-line side: bullish requires line > 0, bearish line < 0 (when requireZeroLineSide)
  *  - magnitude: |histogram| / close ≥ separationPct (filters tiny grazes)
  *  - debounce: no other crossover in the prior `debounceBars` bars
  * Mirrors RsiTracker's cursor/dump/hydrate lifecycle.
@@ -72,6 +78,7 @@ export class MacdTracker {
         const cross = this.classifyCross(prev, cur);
         if (
           cross !== null &&
+          this.zeroSideOk(cross, cur) &&
           this.magnitudeOk(cur, candle.close) &&
           !this.crossedRecently(series, i)
         ) {
@@ -115,6 +122,11 @@ export class MacdTracker {
     if (prev.histogram <= 0 && cur.histogram > 0) return "bullish";
     if (prev.histogram >= 0 && cur.histogram < 0) return "bearish";
     return null;
+  }
+
+  private zeroSideOk(cross: "bullish" | "bearish", cur: MacdPoint): boolean {
+    if (!this.config.requireZeroLineSide) return true;
+    return cross === "bullish" ? cur.line > 0 : cur.line < 0;
   }
 
   private magnitudeOk(cur: MacdPoint, close: number): boolean {
