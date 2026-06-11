@@ -2,7 +2,7 @@
   "stateDir": "/data",
   "scan": {
     "minOpenInterestUsd": 50000000,
-    "interval": "15m",
+    "intervals": ["15m", "30m", "1h"],
     "alerts": ["MACD_CROSSOVER"],
     "macdFast": 12,
     "macdSlow": 26,

@@ -60,7 +60,10 @@ interface RawSymbol extends RawDefaults {
 /** Dynamic "scan all qualifying markets" mode (an alternative to `symbols`). */
 interface RawScan extends RawDefaults {
   minOpenInterestUsd?: unknown;
+  /** Single timeframe; superseded by `intervals` when that is present. */
   interval?: unknown;
+  /** One or more timeframes; each qualifying coin is monitored on every one. */
+  intervals?: unknown;
   alerts?: unknown;
 }
 
@@ -309,24 +312,52 @@ function mergeDefaults(raw: RawDefaults | undefined): Required<RawDefaults> {
   };
 }
 
+/**
+ * Resolve the timeframe(s) a scan should monitor: `intervals` (a non-empty array
+ * of valid intervals) takes precedence; otherwise the single `interval`.
+ */
+export function resolveScanIntervals(scan: {
+  interval?: unknown;
+  intervals?: unknown;
+}): Interval[] {
+  if (scan.intervals !== undefined) {
+    if (!Array.isArray(scan.intervals) || scan.intervals.length === 0) {
+      throw new ConfigError("scan.intervals must be a non-empty array of intervals");
+    }
+    const out: Interval[] = [];
+    for (let i = 0; i < scan.intervals.length; i++) {
+      const v = scan.intervals[i];
+      if (!isInterval(v)) {
+        throw new ConfigError(
+          `scan.intervals[${i}] must be one of: ${INTERVALS.join(", ")} (got ${JSON.stringify(v)})`,
+        );
+      }
+      out.push(v);
+    }
+    return out;
+  }
+  if (!isInterval(scan.interval)) {
+    throw new ConfigError(
+      `scan.interval must be one of: ${INTERVALS.join(", ")} (got ${JSON.stringify(scan.interval)})`,
+    );
+  }
+  return [scan.interval];
+}
+
 async function buildScanConfigs(
   scan: RawScan,
   merged: Required<RawDefaults>,
   stateDir: string | undefined,
   log: ConfigLoadLogger,
 ): Promise<Config[]> {
-  if (!isInterval(scan.interval)) {
-    throw new ConfigError(
-      `scan.interval must be one of: ${INTERVALS.join(", ")} (got ${JSON.stringify(scan.interval)})`,
-    );
-  }
+  const intervals = resolveScanIntervals(scan);
   const minOi = requireNonNegativeNumber(scan.minOpenInterestUsd, "scan.minOpenInterestUsd");
   // Validate the alert allowlist up front; default to MACD-only when omitted.
   const alerts = pickAlertKinds(scan.alerts, "scan.alerts") ?? ["MACD_CROSSOVER"];
 
   log.info(`scan: querying Hyperliquid open interest (>= $${minOi.toLocaleString()})...`);
   const coins = await scanMarketsByOpenInterest(minOi);
-  log.info(`scan: ${coins.length} markets qualified on ${scan.interval}`);
+  log.info(`scan: ${coins.length} markets qualified on ${intervals.join(", ")}`);
   if (coins.length === 0) {
     throw new ConfigError(
       `scan: no markets met the $${minOi.toLocaleString()} open-interest threshold`,
@@ -334,17 +365,21 @@ async function buildScanConfigs(
   }
 
   const configs: Config[] = [];
-  for (let i = 0; i < coins.length; i++) {
-    // Reuse the per-symbol builder so all validation/defaults apply uniformly.
-    // Spread the scan-level tunables (lookback, pollMs, macd*, …) and override
-    // the per-coin identity + alert allowlist.
-    const sym = {
-      ...scan,
-      coin: coins[i],
-      interval: scan.interval,
-      alerts,
-    } as RawSymbol;
-    configs.push(buildConfig(sym, merged, stateDir, i));
+  let idx = 0;
+  for (const coin of coins) {
+    for (const interval of intervals) {
+      // Reuse the per-symbol builder so all validation/defaults apply uniformly.
+      // Spread the scan-level tunables (lookback, pollMs, macd*, …) and override
+      // the per-coin identity + alert allowlist.
+      const sym = {
+        ...scan,
+        coin,
+        interval,
+        alerts,
+      } as RawSymbol;
+      configs.push(buildConfig(sym, merged, stateDir, idx));
+      idx += 1;
+    }
   }
   return configs;
 }

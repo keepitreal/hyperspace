@@ -41,6 +41,18 @@ function fmtBps(bps: number): string {
   return `${sign}${(bps / 100).toFixed(2)}%`;
 }
 
+/**
+ * Signed distance of the MACD line from the zero line at the crossover, shown
+ * raw (matches a charting tool) and normalized as % of price (comparable across
+ * markets of very different price). e.g. "+84.20 (+0.137%)".
+ */
+function fmtMacdZero(line: number, price: number): string {
+  const raw = `${line >= 0 ? "+" : "-"}${fmtPrice(Math.abs(line))}`;
+  const pctVal = price !== 0 ? (line / price) * 100 : 0;
+  const pct = `${pctVal >= 0 ? "+" : "-"}${Math.abs(pctVal).toFixed(3)}%`;
+  return `${raw} (${pct})`;
+}
+
 function alertColor(kind: AlertKind): string {
   switch (kind) {
     case "BREAKOUT":
@@ -119,8 +131,9 @@ export function formatAlert(alert: Alert): string {
     const dir = alert.macdCross ?? "n/a";
     const dirStr = colorize(dir, dir === "bullish" ? ANSI.green : ANSI.red);
     const hist = alert.macdHistogram !== undefined ? `hist ${alert.macdHistogram.toFixed(4)}` : "";
+    const zero = alert.macdLine !== undefined ? `zero ${fmtMacdZero(alert.macdLine, alert.price)}` : "";
     const priceStr = `px ${fmtPrice(alert.price)}`;
-    return [ts, kind, meta, dirStr, hist, priceStr].filter((s) => s.length > 0).join("  ");
+    return [ts, kind, meta, dirStr, hist, zero, priceStr].filter((s) => s.length > 0).join("  ");
   }
   const sideTag = colorize(alert.side, alert.side === "resistance" ? ANSI.red : ANSI.green);
   const levelStr = `${sideTag} ${fmtPrice(alert.levelPrice)}`;

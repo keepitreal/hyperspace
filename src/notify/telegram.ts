@@ -39,6 +39,14 @@ function fmtBps(bps: number): string {
   return `${sign}${(bps / 100).toFixed(2)}%`;
 }
 
+/** Signed MACD-line distance from zero at the cross: raw + % of price. */
+function fmtMacdZero(line: number, price: number): string {
+  const raw = `${line >= 0 ? "+" : "-"}${fmtPrice(Math.abs(line))}`;
+  const pctVal = price !== 0 ? (line / price) * 100 : 0;
+  const pct = `${pctVal >= 0 ? "+" : "-"}${Math.abs(pctVal).toFixed(3)}%`;
+  return `${raw} (${pct})`;
+}
+
 function fmtBreakdownEntry(name: string, value: number): string {
   const sign = value > 0 ? "+" : "";
   return `${name} ${sign}${value}`;
@@ -73,6 +81,9 @@ export function formatTelegramMessage(alert: Alert): string {
     lines.push(`cross <b>${escapeHtml(dir)}</b>`);
     if (alert.macdHistogram !== undefined) {
       lines.push(`hist ${alert.macdHistogram.toFixed(4)}`);
+    }
+    if (alert.macdLine !== undefined) {
+      lines.push(`zero ${escapeHtml(fmtMacdZero(alert.macdLine, alert.price))}`);
     }
     lines.push(`px ${fmtPrice(alert.price)}`);
     return lines.join("\n");

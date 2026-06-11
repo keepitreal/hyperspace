@@ -82,25 +82,25 @@ Each `symbols[]` entry runs its own poll loop. The same coin can appear multiple
 
 ### Scan mode (dynamic universe)
 
-Instead of an explicit `symbols[]` list, a config file may declare a `scan` block. At startup the monitor queries Hyperliquid open interest across every perp DEX (main + builder-deployed, e.g. `xyz:`) and spins up one poll loop per coin whose notional open interest (`openInterest × markPx`) meets the threshold. The set is snapshotted once at startup — restart to refresh.
+Instead of an explicit `symbols[]` list, a config file may declare a `scan` block. At startup the monitor queries Hyperliquid open interest across every perp DEX (main + builder-deployed, e.g. `xyz:`) and spins up a poll loop per qualifying coin **per interval** (notional open interest `openInterest × markPx` ≥ threshold). The set is snapshotted once at startup — restart to refresh.
 
 ```jsonc
 {
   "stateDir": "/data",
   "scan": {
-    "minOpenInterestUsd": 50000000,   // qualify coins with >= $50M OI
-    "interval": "15m",                // all qualifying coins monitored on this interval
-    "alerts": ["MACD_CROSSOVER"],     // mute everything except MACD crossovers
+    "minOpenInterestUsd": 50000000,    // qualify coins with >= $50M OI
+    "intervals": ["15m", "30m", "1h"], // each qualifying coin is monitored on every interval
+    "alerts": ["MACD_CROSSOVER"],      // mute everything except MACD crossovers
     "macdFast": 12,
     "macdSlow": 26,
     "macdSignal": 9,
-    "macdSeparationPct": 0.0003,       // min |histogram|/price at the cross (0.03%)
+    "macdSeparationPct": 0.0003,        // min |histogram|/price at the cross (0.03%)
     "macdDebounceBars": 10             // skip a cross within 10 bars of a prior one
   }
 }
 ```
 
-`scan` and `symbols` are mutually exclusive — when `scan` is present it takes precedence. `defaults` still apply (e.g. `pollMs`, `lookback`, `maxReplayBars`), and any field above falls back to its default when omitted.
+Use `intervals` (an array) to monitor several timeframes, or `interval` (a single string) for one. `scan` and `symbols` are mutually exclusive — when `scan` is present it takes precedence. `defaults` still apply (e.g. `pollMs`, `lookback`, `maxReplayBars`), and any field above falls back to its default when omitted.
 
 ### Alert kinds
 
@@ -113,7 +113,7 @@ Instead of an explicit `symbols[]` list, a config file may declare a `scan` bloc
 | `EXPIRED` | `retestBars` pass without a retest. |
 | `RSI_OVERBOUGHT` / `RSI_OVERSOLD` | Wilder RSI(14) ≥ `rsiOverbought` or ≤ `rsiOversold` on a closed candle. |
 | `VOLATILITY_SPIKE` | A closed candle's full range `(high − low) / open` ≥ `volatilityThresholdPct%`. Wicks included. `side` reflects close direction: `resistance` if close ≥ open, `support` otherwise. |
-| `MACD_CROSSOVER` | The MACD line (EMA `macdFast` − EMA `macdSlow`) crosses its signal line (EMA `macdSignal`) on a closed candle — i.e. the histogram changes sign. Fires only when `\|histogram\| / close ≥ macdSeparationPct` (price-normalized, so it is comparable across all scanned markets) and no other crossover occurred in the prior `macdDebounceBars` bars. `macdCross` is `bullish` (`side` resistance) or `bearish` (`side` support). |
+| `MACD_CROSSOVER` | The MACD line (EMA `macdFast` − EMA `macdSlow`) crosses its signal line (EMA `macdSignal`) on a closed candle — i.e. the histogram changes sign. Fires only when `\|histogram\| / close ≥ macdSeparationPct` (price-normalized, so it is comparable across all scanned markets) and no other crossover occurred in the prior `macdDebounceBars` bars. `macdCross` is `bullish` (`side` resistance) or `bearish` (`side` support). The alert also reports the MACD line's signed distance from the zero line at the cross (`zero`), shown raw and as % of price. |
 
 ### Single-symbol CLI flags
 
@@ -148,7 +148,7 @@ Instead of an explicit `symbols[]` list, a config file may declare a `scan` bloc
 [2026-05-29 20:54:59]  BREAKOUT      ETH 5m   support 2021.70     px 2017.10 (-0.23%)  confidence 57/100 MEDIUM (close +24, volume 0, atr +15, wick 0, level 0, time +10, vwap +8)
 [2026-05-29 21:30:00]  VOLATILITY_SPIKE  ETH 30m  range 1.78%  H 2058.75  L 2022.60  close 2042.50 (up)
 [2026-05-30 08:15:00]  RSI_OVERSOLD  ETH 5m   RSI 28.4   px 1987.20
-[2026-05-30 09:00:00]  MACD_CROSSOVER  BTC 15m  bullish  hist 12.3400  px 61742.00
+[2026-05-30 09:00:00]  MACD_CROSSOVER  BTC 15m  bullish  hist 12.3400  zero +84.2000 (+0.136%)  px 61742.00
 ```
 
 ### Breakout confidence scoring
