@@ -81,7 +81,8 @@ export type AlertKind =
   | "RSI_OVERBOUGHT"
   | "RSI_OVERSOLD"
   | "VOLATILITY_SPIKE"
-  | "MACD_CROSSOVER";
+  | "MACD_CROSSOVER"
+  | "FVG_PROXIMITY";
 
 /** Runtime list — keep in sync with AlertKind union. Used for config validation. */
 export const ALL_ALERT_KINDS: readonly AlertKind[] = [
@@ -94,6 +95,7 @@ export const ALL_ALERT_KINDS: readonly AlertKind[] = [
   "RSI_OVERSOLD",
   "VOLATILITY_SPIKE",
   "MACD_CROSSOVER",
+  "FVG_PROXIMITY",
 ];
 
 export interface Alert {
@@ -128,6 +130,14 @@ export interface Alert {
   macdSignal?: number;
   /** MACD histogram (line − signal) at the crossover bar. Only on MACD_CROSSOVER. */
   macdHistogram?: number;
+  /** Gap direction ("bullish" = support zone, "bearish" = resistance zone). Only on FVG_PROXIMITY. */
+  fvgType?: "bullish" | "bearish";
+  /** Upper boundary of the gap zone. Only on FVG_PROXIMITY. */
+  fvgTop?: number;
+  /** Lower boundary of the gap zone. Only on FVG_PROXIMITY. */
+  fvgBottom?: number;
+  /** Distance from price to the near (unbreached) gap edge, as a fraction of price. Only on FVG_PROXIMITY. */
+  fvgDistancePct?: number;
 }
 
 export interface Config {
@@ -167,6 +177,16 @@ export interface Config {
   macdSeparationPct: number;
   /** Suppress a MACD_CROSSOVER if another crossover occurred within this many prior bars. Default 10. */
   macdDebounceBars: number;
+  /** ATR period (Wilder) used to size FVGs. Default 14. */
+  fvgAtrPeriod: number;
+  /** Min gap size to track an FVG, as a multiple of ATR at formation. Default 0.25. */
+  fvgAtrMultiple: number;
+  /** Fire FVG_PROXIMITY when price is within this fraction of breaching a gap edge. Default 0.005 (0.5%). */
+  fvgProximityPct: number;
+  /** Drop unfilled FVGs older than this many bars. Default 200. */
+  fvgLookbackBars: number;
+  /** Max simultaneous tracked FVGs per coin/interval. Default 50. */
+  fvgMaxActive: number;
   /** Optional per-monitor inclusion list of alert kinds. Undefined = all kinds emit. */
   alerts?: readonly AlertKind[];
 }

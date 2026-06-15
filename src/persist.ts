@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import { dirname } from "node:path";
+import type { FvgGapRecord } from "./fvgTracker.js";
 import type { Interval, Setup, SetupState } from "./types.js";
 
 const FILE_VERSION = 1 as const;
@@ -27,6 +28,12 @@ export interface PersistedState {
    * before MACD tracking was added — absent => MACD tracker starts fresh.
    */
   macdLastProcessedOpenTs?: number;
+  /**
+   * FVG tracker cursor + live gaps. Optional for backwards-compat with files
+   * written before FVG tracking was added — absent => FVG tracker starts fresh.
+   */
+  fvgLastProcessedOpenTs?: number;
+  fvgGaps?: FvgGapRecord[];
 }
 
 export interface PersistLogger {
@@ -151,6 +158,37 @@ function validatePersisted(x: unknown): PersistedState | null {
   }
   if (typeof macdCursor === "number") {
     out.macdLastProcessedOpenTs = macdCursor;
+  }
+  const fvgCursor = obj["fvgLastProcessedOpenTs"];
+  if (typeof fvgCursor === "number") {
+    out.fvgLastProcessedOpenTs = fvgCursor;
+  }
+  const fvgGaps = validateFvgGaps(obj["fvgGaps"]);
+  if (fvgGaps !== null) {
+    out.fvgGaps = fvgGaps;
+  }
+  return out;
+}
+
+/** Returns a validated gap list, or null if the field is absent or malformed. */
+function validateFvgGaps(x: unknown): FvgGapRecord[] | null {
+  if (!Array.isArray(x)) return null;
+  const out: FvgGapRecord[] = [];
+  for (const g of x) {
+    if (typeof g !== "object" || g === null) return null;
+    const obj = g as Record<string, unknown>;
+    if (obj["type"] !== "bullish" && obj["type"] !== "bearish") return null;
+    if (typeof obj["top"] !== "number") return null;
+    if (typeof obj["bottom"] !== "number") return null;
+    if (typeof obj["formationOpenTs"] !== "number") return null;
+    if (typeof obj["alerted"] !== "boolean") return null;
+    out.push({
+      type: obj["type"],
+      top: obj["top"],
+      bottom: obj["bottom"],
+      formationOpenTs: obj["formationOpenTs"],
+      alerted: obj["alerted"],
+    });
   }
   return out;
 }

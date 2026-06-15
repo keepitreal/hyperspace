@@ -1,0 +1,13 @@
+{
+  "stateDir": "/data",
+  "scan": {
+    "minOpenInterestUsd": 50000000,
+    "intervals": ["1h", "4h"],
+    "alerts": ["FVG_PROXIMITY"],
+    "fvgAtrPeriod": 14,
+    "fvgAtrMultiple": 0.25,
+    "fvgProximityPct": 0.005,
+    "fvgLookbackBars": 200,
+    "fvgMaxActive": 50
+  }
+}

@@ -73,6 +73,8 @@ function alertColor(kind: AlertKind): string {
       return ANSI.yellow;
     case "MACD_CROSSOVER":
       return ANSI.cyan;
+    case "FVG_PROXIMITY":
+      return ANSI.magenta;
   }
 }
 
@@ -134,6 +136,18 @@ export function formatAlert(alert: Alert): string {
     const zero = alert.macdLine !== undefined ? `zero ${fmtMacdZero(alert.macdLine, alert.price)}` : "";
     const priceStr = `px ${fmtPrice(alert.price)}`;
     return [ts, kind, meta, dirStr, hist, zero, priceStr].filter((s) => s.length > 0).join("  ");
+  }
+  if (alert.kind === "FVG_PROXIMITY") {
+    const type = alert.fvgType ?? "n/a";
+    const typeStr = colorize(type, type === "bullish" ? ANSI.green : ANSI.red);
+    const gap =
+      alert.fvgBottom !== undefined && alert.fvgTop !== undefined
+        ? `gap ${fmtPrice(alert.fvgBottom)}–${fmtPrice(alert.fvgTop)}`
+        : "";
+    const dist =
+      alert.fvgDistancePct !== undefined ? `dist ${(alert.fvgDistancePct * 100).toFixed(2)}%` : "";
+    const priceStr = `px ${fmtPrice(alert.price)}`;
+    return [ts, kind, meta, typeStr, gap, dist, priceStr].filter((s) => s.length > 0).join("  ");
   }
   const sideTag = colorize(alert.side, alert.side === "resistance" ? ANSI.red : ANSI.green);
   const levelStr = `${sideTag} ${fmtPrice(alert.levelPrice)}`;

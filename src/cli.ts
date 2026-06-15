@@ -129,6 +129,11 @@ const KNOWN_FLAGS = new Set([
   "macd-signal",
   "macd-separation-pct",
   "macd-debounce-bars",
+  "fvg-atr-period",
+  "fvg-atr-multiple",
+  "fvg-proximity-pct",
+  "fvg-lookback-bars",
+  "fvg-max-active",
   "alerts",
   "config",
   "help",
@@ -252,6 +257,24 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     "macd-debounce-bars",
   );
 
+  const fvgAtrPeriod = parsePositiveInt(optionalString(args, "fvg-atr-period") ?? "14", "fvg-atr-period");
+  const fvgAtrMultiple = parseNonNegativeNumber(
+    optionalString(args, "fvg-atr-multiple") ?? "0.25",
+    "fvg-atr-multiple",
+  );
+  const fvgProximityPct = parseNonNegativeNumber(
+    optionalString(args, "fvg-proximity-pct") ?? "0.005",
+    "fvg-proximity-pct",
+  );
+  if (fvgProximityPct <= 0) {
+    throw new CliError("--fvg-proximity-pct must be > 0");
+  }
+  const fvgLookbackBars = parsePositiveInt(
+    optionalString(args, "fvg-lookback-bars") ?? "200",
+    "fvg-lookback-bars",
+  );
+  const fvgMaxActive = parsePositiveInt(optionalString(args, "fvg-max-active") ?? "50", "fvg-max-active");
+
   const alertsRaw = optionalString(args, "alerts");
   let alerts: AlertKind[] | undefined;
   if (alertsRaw !== undefined) {
@@ -303,6 +326,11 @@ export function parseArgs(argv: readonly string[]): ParsedCli {
     macdSignal,
     macdSeparationPct,
     macdDebounceBars,
+    fvgAtrPeriod,
+    fvgAtrMultiple,
+    fvgProximityPct,
+    fvgLookbackBars,
+    fvgMaxActive,
   };
   if (stateFile !== undefined) config.stateFile = stateFile;
   if (alerts !== undefined) config.alerts = alerts;
@@ -348,6 +376,13 @@ export function usage(): string {
     "  --macd-signal <n>        Signal EMA period (default 9)",
     "  --macd-separation-pct <p>  Min |histogram|/price at the cross to fire (default 0.0003)",
     "  --macd-debounce-bars <n>   Suppress a cross within N prior bars of another (default 10)",
+    "",
+    "FVG (Fair Value Gap):",
+    "  --fvg-atr-period <n>       ATR period used to size gaps (default 14)",
+    "  --fvg-atr-multiple <k>     Min gap size as a multiple of ATR (default 0.25)",
+    "  --fvg-proximity-pct <p>    Fire when price is within this fraction of breaching a gap (default 0.005)",
+    "  --fvg-lookback-bars <n>    Drop unfilled gaps older than N bars (default 200)",
+    "  --fvg-max-active <n>       Max simultaneously tracked gaps (default 50)",
     "",
     "Alert filtering:",
     `  --alerts <CSV>           Restrict emitted alerts to listed kinds (omit = all). Valid: ${ALL_ALERT_KINDS.join(", ")}`,

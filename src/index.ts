@@ -4,6 +4,7 @@ import { fetchCandles, splitClosed } from "./hyperliquid.js";
 import { detectLevels } from "./levels.js";
 import { formatStatus, makeLogger } from "./log.js";
 import { buildNotifier, type Notifier } from "./notify/index.js";
+import { FvgTracker } from "./fvgTracker.js";
 import { MacdTracker } from "./macdTracker.js";
 import { JsonStateStore } from "./persist.js";
 import { debugFeatures } from "./quality.js";
@@ -121,6 +122,14 @@ async function run(
     debounceBars: config.macdDebounceBars,
   });
 
+  const fvgTracker = new FvgTracker({
+    atrPeriod: config.fvgAtrPeriod,
+    atrMultiple: config.fvgAtrMultiple,
+    proximityPct: config.fvgProximityPct,
+    lookbackBars: config.fvgLookbackBars,
+    maxActive: config.fvgMaxActive,
+  });
+
   const store =
     config.stateFile !== undefined ? new JsonStateStore(config.stateFile, log) : null;
   const intervalMs = intervalToMs(config.interval);
@@ -152,6 +161,12 @@ async function run(
           { clampOpenTsTo },
         );
       }
+      if (loaded.fvgLastProcessedOpenTs !== undefined) {
+        fvgTracker.hydrate(
+          { lastProcessedOpenTs: loaded.fvgLastProcessedOpenTs, gaps: loaded.fvgGaps ?? [] },
+          { clampOpenTsTo },
+        );
+      }
       const ageMinutes = Math.round(ageMs / 60_000);
       log.info(
         `state: hydrated ${loaded.setups.length} setups from ${config.stateFile} (saved ${ageMinutes}m ago${clamped ? `, clamped to last ${config.maxReplayBars} bars` : ""})`,
@@ -174,6 +189,7 @@ async function run(
   let lastSavedRsiCursor = rsiTracker.getLastProcessedOpenTs();
   let lastSavedVolatilityCursor = volatilityTracker.getLastProcessedOpenTs();
   let lastSavedMacdCursor = macdTracker.getLastProcessedOpenTs();
+  let lastSavedFvgVersion = fvgTracker.getStateVersion();
 
   const persistIfChanged = async (): Promise<void> => {
     if (store === null) return;
@@ -181,15 +197,18 @@ async function run(
     const rsiCursor = rsiTracker.getLastProcessedOpenTs();
     const volatilityCursor = volatilityTracker.getLastProcessedOpenTs();
     const macdCursor = macdTracker.getLastProcessedOpenTs();
+    const fvgVersion = fvgTracker.getStateVersion();
     if (
       cursor === lastSavedCursor &&
       rsiCursor === lastSavedRsiCursor &&
       volatilityCursor === lastSavedVolatilityCursor &&
-      macdCursor === lastSavedMacdCursor
+      macdCursor === lastSavedMacdCursor &&
+      fvgVersion === lastSavedFvgVersion
     ) {
       return;
     }
     const dumped = tracker.dump();
+    const fvgDumped = fvgTracker.dump();
     await store.save({
       coin: config.coin,
       interval: config.interval,
@@ -198,11 +217,14 @@ async function run(
       rsiLastProcessedOpenTs: rsiCursor,
       volatilityLastProcessedOpenTs: volatilityCursor,
       macdLastProcessedOpenTs: macdCursor,
+      fvgLastProcessedOpenTs: fvgDumped.lastProcessedOpenTs,
+      fvgGaps: fvgDumped.gaps,
     });
     lastSavedCursor = cursor;
     lastSavedRsiCursor = rsiCursor;
     lastSavedVolatilityCursor = volatilityCursor;
     lastSavedMacdCursor = macdCursor;
+    lastSavedFvgVersion = fvgVersion;
   };
 
   while (!signal.aborted) {
@@ -241,12 +263,19 @@ async function run(
         coin: config.coin,
         interval: config.interval,
       });
+      fvgTracker.update({
+        closedCandles: closed,
+        inProgress,
+        coin: config.coin,
+        interval: config.interval,
+      });
 
       const drained: Alert[] = [
         ...tracker.drainAlerts(),
         ...rsiTracker.drainAlerts(),
         ...volatilityTracker.drainAlerts(),
         ...macdTracker.drainAlerts(),
+        ...fvgTracker.drainAlerts(),
       ];
       for (const alert of drained) {
         if (allows(alert.kind, config.alerts)) {

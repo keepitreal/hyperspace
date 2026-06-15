@@ -88,6 +88,18 @@ export function formatTelegramMessage(alert: Alert): string {
     lines.push(`px ${fmtPrice(alert.price)}`);
     return lines.join("\n");
   }
+  if (alert.kind === "FVG_PROXIMITY") {
+    const type = alert.fvgType ?? "n/a";
+    lines.push(`fvg <b>${escapeHtml(type)}</b>`);
+    if (alert.fvgBottom !== undefined && alert.fvgTop !== undefined) {
+      lines.push(`gap ${fmtPrice(alert.fvgBottom)}–${fmtPrice(alert.fvgTop)}`);
+    }
+    if (alert.fvgDistancePct !== undefined) {
+      lines.push(`dist <b>${(alert.fvgDistancePct * 100).toFixed(2)}%</b>`);
+    }
+    lines.push(`px ${fmtPrice(alert.price)}`);
+    return lines.join("\n");
+  }
   const side = escapeHtml(alert.side);
   lines.push(`${side} <b>${fmtPrice(alert.levelPrice)}</b>`);
   lines.push(`px ${fmtPrice(alert.price)} (${fmtBps(alert.bpsFromLevel)})`);

@@ -28,6 +28,11 @@ const DEFAULTS = {
   macdSignal: 9,
   macdSeparationPct: 0.0003,
   macdDebounceBars: 10,
+  fvgAtrPeriod: 14,
+  fvgAtrMultiple: 0.25,
+  fvgProximityPct: 0.005,
+  fvgLookbackBars: 200,
+  fvgMaxActive: 50,
 } as const;
 
 interface RawDefaults {
@@ -49,6 +54,11 @@ interface RawDefaults {
   macdSignal?: number;
   macdSeparationPct?: number;
   macdDebounceBars?: number;
+  fvgAtrPeriod?: number;
+  fvgAtrMultiple?: number;
+  fvgProximityPct?: number;
+  fvgLookbackBars?: number;
+  fvgMaxActive?: number;
 }
 
 interface RawSymbol extends RawDefaults {
@@ -234,7 +244,27 @@ function buildConfig(
       merged.macdDebounceBars,
       label("macdDebounceBars"),
     ),
+    fvgAtrPeriod: pickPositiveInt(sym.fvgAtrPeriod, merged.fvgAtrPeriod, label("fvgAtrPeriod")),
+    fvgAtrMultiple: pickNonNegativeNumber(
+      sym.fvgAtrMultiple,
+      merged.fvgAtrMultiple,
+      label("fvgAtrMultiple"),
+    ),
+    fvgProximityPct: pickNonNegativeNumber(
+      sym.fvgProximityPct,
+      merged.fvgProximityPct,
+      label("fvgProximityPct"),
+    ),
+    fvgLookbackBars: pickPositiveInt(
+      sym.fvgLookbackBars,
+      merged.fvgLookbackBars,
+      label("fvgLookbackBars"),
+    ),
+    fvgMaxActive: pickPositiveInt(sym.fvgMaxActive, merged.fvgMaxActive, label("fvgMaxActive")),
   };
+  if (config.fvgProximityPct <= 0) {
+    throw new ConfigError(`${label("fvgProximityPct")} must be > 0 (got ${config.fvgProximityPct})`);
+  }
   if (config.macdFast >= config.macdSlow) {
     throw new ConfigError(
       `${label("macdFast")} (${config.macdFast}) must be less than ${label("macdSlow")} (${config.macdSlow})`,
@@ -309,6 +339,23 @@ function mergeDefaults(raw: RawDefaults | undefined): Required<RawDefaults> {
       DEFAULTS.macdDebounceBars,
       "defaults.macdDebounceBars",
     ),
+    fvgAtrPeriod: pickPositiveInt(raw?.fvgAtrPeriod, DEFAULTS.fvgAtrPeriod, "defaults.fvgAtrPeriod"),
+    fvgAtrMultiple: pickNonNegativeNumber(
+      raw?.fvgAtrMultiple,
+      DEFAULTS.fvgAtrMultiple,
+      "defaults.fvgAtrMultiple",
+    ),
+    fvgProximityPct: pickNonNegativeNumber(
+      raw?.fvgProximityPct,
+      DEFAULTS.fvgProximityPct,
+      "defaults.fvgProximityPct",
+    ),
+    fvgLookbackBars: pickPositiveInt(
+      raw?.fvgLookbackBars,
+      DEFAULTS.fvgLookbackBars,
+      "defaults.fvgLookbackBars",
+    ),
+    fvgMaxActive: pickPositiveInt(raw?.fvgMaxActive, DEFAULTS.fvgMaxActive, "defaults.fvgMaxActive"),
   };
 }
 
