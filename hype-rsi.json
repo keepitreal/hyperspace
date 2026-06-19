@@ -1,0 +1,19 @@
+{
+  "stateDir": "/data",
+  "symbols": [
+    {
+      "coin": "HYPE",
+      "interval": "1h",
+      "rsiOverbought": 70,
+      "rsiOversold": 35,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
+    },
+    {
+      "coin": "HYPE",
+      "interval": "4h",
+      "rsiOverbought": 70,
+      "rsiOversold": 35,
+      "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"]
+    }
+  ]
+}
