@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "pnpm tsx src/index.ts --config hype-rsi.json",
+    "startCommand": "pnpm tsx src/index.ts --config rsi.json",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
