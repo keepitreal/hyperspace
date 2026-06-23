@@ -250,6 +250,7 @@ async function run(
       });
       rsiTracker.update({
         closedCandles: closed,
+        inProgress,
         coin: config.coin,
         interval: config.interval,
       });
