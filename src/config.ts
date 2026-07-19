@@ -457,12 +457,12 @@ export async function loadSymbolsConfig(
       ? parsed.stateDir
       : undefined;
 
-  // Dynamic scan mode takes precedence over an explicit symbols list.
-  if (parsed.scan !== undefined) {
-    return buildScanConfigs(parsed.scan, merged, stateDir, log);
-  }
-
-  if (!Array.isArray(parsed.symbols) || parsed.symbols.length === 0) {
+  // Both modes may coexist: an explicit `symbols` list and a dynamic `scan`.
+  // Explicit symbols are built first and take precedence, so a scan-produced
+  // coin:interval that duplicates an explicit symbol is skipped (not an error).
+  const hasSymbols = Array.isArray(parsed.symbols) && parsed.symbols.length > 0;
+  const hasScan = parsed.scan !== undefined;
+  if (!hasSymbols && !hasScan) {
     throw new ConfigError(
       `Config file at ${path} must have a non-empty "symbols" array or a "scan" block`,
     );
@@ -470,15 +470,29 @@ export async function loadSymbolsConfig(
 
   const configs: Config[] = [];
   const seen = new Set<string>();
-  for (let i = 0; i < parsed.symbols.length; i++) {
-    const sym = parsed.symbols[i]!;
-    const config = buildConfig(sym, merged, stateDir, i);
-    const key = `${config.coin}:${config.interval}`;
-    if (seen.has(key)) {
-      throw new ConfigError(`Duplicate symbol ${key} in config (entries cannot repeat)`);
+
+  if (hasSymbols) {
+    const symbols = parsed.symbols!;
+    for (let i = 0; i < symbols.length; i++) {
+      const config = buildConfig(symbols[i]!, merged, stateDir, i);
+      const key = `${config.coin}:${config.interval}`;
+      if (seen.has(key)) {
+        throw new ConfigError(`Duplicate symbol ${key} in config (entries cannot repeat)`);
+      }
+      seen.add(key);
+      configs.push(config);
     }
-    seen.add(key);
-    configs.push(config);
   }
+
+  if (hasScan) {
+    const scanConfigs = await buildScanConfigs(parsed.scan!, merged, stateDir, log);
+    for (const c of scanConfigs) {
+      const key = `${c.coin}:${c.interval}`;
+      if (seen.has(key)) continue; // an explicit symbol wins over the scan
+      seen.add(key);
+      configs.push(c);
+    }
+  }
+
   return configs;
 }

@@ -5,17 +5,20 @@
     "rsiOversold": 30
   },
   "symbols": [
-    { "coin": "HYPE", "interval": "15m", "rsiOversold": 35, "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "HYPE", "interval": "1h", "rsiOversold": 35, "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "HYPE", "interval": "4h", "rsiOversold": 35, "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
-    { "coin": "BTC", "interval": "15m", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "BTC", "interval": "1h", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "BTC", "interval": "4h", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
-    { "coin": "SOL", "interval": "15m", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "SOL", "interval": "1h", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "SOL", "interval": "4h", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
-    { "coin": "ETH", "interval": "15m", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "ETH", "interval": "1h", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] },
     { "coin": "ETH", "interval": "4h", "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"] }
-  ]
+  ],
+  "scan": {
+    "minOpenInterestUsd": 25000000,
+    "intervals": ["1w"],
+    "alerts": ["RSI_OVERBOUGHT", "RSI_OVERSOLD"],
+    "pollMs": 600000,
+    "lookback": 60
+  }
 }
